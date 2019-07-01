@@ -90,7 +90,7 @@ HybridMotionValidator::HybridMotionValidator(const ros::NodeHandle &node_handle,
 
 //  pMonitor_.reset(new planning_scene_monitor::PlanningSceneMonitor(robot_name_));
 
-  robot_state_publisher_ = node_handle_.advertise<moveit_msgs::DisplayRobotState>("interactive_robot_state", 1);
+//  robot_state_publisher_ = node_handle_.advertise<moveit_msgs::DisplayRobotState>("interactive_robot_state", 1);
 }
 
 bool HybridMotionValidator::checkMotion(const ompl::base::State *s1, const ompl::base::State *s2) const
@@ -146,7 +146,13 @@ bool HybridMotionValidator::checkMotion(const ompl::base::State *s1, const ompl:
     goal_state->update();
 
     if (!start_state->hasAttachedBody(object_name_) || !goal_state->hasAttachedBody(object_name_))
+    {
+      s1_needle.release();
+      s2_needle.release();
+      start_state->clearAttachedBodies();
+      goal_state->clearAttachedBodies();
       return result;
+    }
 
     switch (hyStateSpace_->checkStateDiff(hs1, hs2))
     {
@@ -156,19 +162,19 @@ bool HybridMotionValidator::checkMotion(const ompl::base::State *s1, const ompl:
       case StateDiff::PoseDiffArmAndGraspSame:
       {
 //        result = planPathFromTwoStates(*start_state, *goal_state, active_group_s1);
-        result = planObjectTransit(*start_state, *goal_state, active_group_s1);
+        result = planObjectTransit(*start_state, *goal_state, active_group_s1, hs1);
         auto finish = std::chrono::high_resolution_clock::now();
         std::chrono::duration<double> elapsed = finish - start;
         hyStateSpace_->object_transit_planning_duration_ += elapsed;
         break;
       }
       case StateDiff::ArmAndGraspDiffPoseSame:
-        result = planHandoff(*start_state, *goal_state, active_group_s1, active_group_s2);
+        result = planHandoff(*start_state, *goal_state, active_group_s1, active_group_s2, hs1);
         if(!result)
           hyStateSpace_->hand_off_failed_num += 1;
         break;
       case StateDiff::ArmDiffGraspAndPoseSame:
-        result = planHandoff(*start_state, *goal_state, active_group_s1, active_group_s2);
+        result = planHandoff(*start_state, *goal_state, active_group_s1, active_group_s2, hs1);
         if(!result)
           hyStateSpace_->hand_off_failed_num += 1;
         break;
@@ -234,7 +240,8 @@ void HybridMotionValidator::initializePlannerPlugin()
 bool HybridMotionValidator::planHandoff(const robot_state::RobotState &start_state,
                                         const robot_state::RobotState &goal_state,
                                         const std::string &ss_active_group,
-                                        const std::string &gs_active_group) const
+                                        const std::string &gs_active_group,
+                                        const HybridObjectStateSpace::StateType *stateType) const
 {
   hyStateSpace_->hand_off_planning_num += 1;
   auto start = std::chrono::high_resolution_clock::now();
@@ -341,7 +348,7 @@ bool HybridMotionValidator::planPreGraspStateToGraspedState(robot_state::RobotSt
   {
     Eigen::Vector3d approach_dir = grasped_tool_tip_pose.linear() * (distance * unit_approach_dir);
     pregrasp_tool_tip_pose.translation() = grasped_tool_tip_pose.translation() - approach_dir;
-    std::size_t attempts = 1;
+    std::size_t attempts = 2;
     double timeout = 0.025;
     found_ik = pre_grasp_state.setFromIK(arm_joint_group, pregrasp_tool_tip_pose, attempts, timeout);
 //    found_ik = setFromIK(pre_grasp_state, arm_joint_group, planning_group, tip_link->getName(), pregrasp_tool_tip_pose);
@@ -500,7 +507,7 @@ bool HybridMotionValidator::planGraspStateToUngraspedState(const robot_state::Ro
 
   auto start_ik = std::chrono::high_resolution_clock::now();
 
-  std::size_t attempts = 1;
+  std::size_t attempts = 2;
   double timeout = 0.025;
   bool found_ik = ungrasped_state.setFromIK(arm_joint_group, grasped_tool_tip_pose, attempts, timeout);
 //  bool found_ik = setFromIK(ungrasped_state, arm_joint_group, planning_group, tip_link->getName(), grasped_tool_tip_pose);
@@ -675,7 +682,8 @@ bool HybridMotionValidator::planUngraspedStateToSafeState(const robot_state::Rob
 
 bool HybridMotionValidator::planObjectTransit(const robot_state::RobotState &start_state,
                                               const robot_state::RobotState &goal_state,
-                                              const std::string &planning_group) const
+                                              const std::string &planning_group,
+                                              const HybridObjectStateSpace::StateType *stateType) const
 {
   hyStateSpace_->object_transit_motion_planner_num += 1;
   auto start_ik = std::chrono::high_resolution_clock::now();
@@ -709,6 +717,9 @@ bool HybridMotionValidator::planObjectTransit(const robot_state::RobotState &sta
       return clear_path;
     }
   }
+  const_cast<HybridObjectStateSpace::StateType *>(stateType)->resetRobotStatePtrArray(1);
+  stateType->robotStatePtrArray_[0] = traj;
+
   clear_path = true;
   return clear_path;
 }
@@ -722,21 +733,21 @@ bool HybridMotionValidator::noCollision(const robot_state::RobotState& rstate) c
   collision_request.contacts = true;
   collision_detection::CollisionResult collision_result;
   planning_scene_->checkCollisionUnpadded(collision_request, collision_result, rstate);
-  bool no_collision = (collision_result.collision == false) ? true : false;
+  bool no_collision = !collision_result.collision;
 
   auto finish_ik = std::chrono::high_resolution_clock::now();
   std::chrono::duration<double> elapsed = finish_ik - start_ik;
   hyStateSpace_->collision_checking_duration_ += elapsed;
 
-  if(collision_result.collision)
-  {
-    ROS_INFO("Invalid State: Robot state is in collision with planning scene. \n");
-    collision_detection::CollisionResult::ContactMap contactMap = collision_result.contacts;
-    for(collision_detection::CollisionResult::ContactMap::const_iterator it = contactMap.begin(); it != contactMap.end(); ++it)
-    {
-      ROS_INFO("Contact between: %s and %s \n", it->first.first.c_str(), it->first.second.c_str());
-    }
-  }
+//  if(collision_result.collision)
+//  {
+//    ROS_INFO("Invalid State: Robot state is in collision with planning scene. \n");
+//    collision_detection::CollisionResult::ContactMap contactMap = collision_result.contacts;
+//    for(collision_detection::CollisionResult::ContactMap::const_iterator it = contactMap.begin(); it != contactMap.end(); ++it)
+//    {
+//      ROS_INFO("Contact between: %s and %s \n", it->first.first.c_str(), it->first.second.c_str());
+//    }
+//  }
   return no_collision;
 }
 

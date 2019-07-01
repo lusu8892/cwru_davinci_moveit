@@ -49,6 +49,8 @@
 
 namespace dual_arm_manipulation_planner_interface
 {
+typedef std::vector<robot_state::RobotStatePtr> RobotStatePtrs;
+
 enum class StateDiff
 {
   AllSame,
@@ -67,6 +69,8 @@ class HybridStateSampler : public ompl::base::StateSampler
 {
 public:
   HybridStateSampler(const HybridObjectStateSpace *space);
+
+  virtual ~HybridStateSampler() {kmodel_.reset();}
 
   void sampleUniform(ompl::base::State *state) override;
 
@@ -87,7 +91,7 @@ class HybridObjectStateSpace : public ompl::base::CompoundStateSpace
 {
 public:
 
-  void printExecutionDuration();
+  void printExecutionDuration(double* total_time, bool verbose = false);
   void resetTimer();
 
   static std::chrono::duration<double> object_transit_planning_duration_;
@@ -136,10 +140,16 @@ public:
       JOINTS_COMPUTED = 256
     };
 
+    RobotStatePtrs * robotStatePtrArray_;
+
     StateType() : ompl::base::CompoundStateSpace::StateType(), flags(0)
     {
     }
 
+    ~StateType()
+    {
+      delete robotStatePtrArray_;
+    }
 
 //    bool isTransfer() const
 //    {
@@ -223,6 +233,7 @@ public:
       return *as<ompl::base::DiscreteStateSpace::StateType>(1);
     }
 
+
     /**
      * @brief Get the arm index components of the state and allow changing it as well
      * @return
@@ -231,7 +242,6 @@ public:
     {
       return *as<ompl::base::DiscreteStateSpace::StateType>(1);
     }
-
 
     /**
      * @brief Get the grasp index components of the state and allow changing it as well
@@ -267,11 +277,16 @@ public:
       delete[] rstate->values;
       delete rstate;
     }
-
 //    double *values;
 //    int tag;
     int flags;
+
 //    double distance;
+
+    void resetRobotStatePtrArray(int size)
+    {
+      robotStatePtrArray_ = new RobotStatePtrs[size];
+    }
   };
 
   HybridObjectStateSpace(int armIndexLowerBound,
@@ -281,8 +296,7 @@ public:
                          const std::vector<cwru_davinci_grasp::GraspInfo> &possible_grasps,
                          const std::string &robot_name = "robot_description");
 
-  virtual ~HybridObjectStateSpace()
-  {}
+  virtual ~HybridObjectStateSpace() {kmodel_.reset();}
 
   void setSE3Bounds(const ompl::base::RealVectorBounds &bounds);
 
@@ -315,7 +329,7 @@ public:
                            const double t,
                            ompl::base::State *state) const override;
 
-  virtual void copyToReals(std::vector<double> &reals, const ompl::base::State *source) const override;
+//  void copyToReals(std::vector<double> &reals, const ompl::base::State *source) const override;
 //  virtual double getMaximumExtent() const;
 
   virtual ompl::base::StateSamplerPtr allocDefaultStateSampler() const override;

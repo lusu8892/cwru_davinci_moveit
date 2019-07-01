@@ -41,6 +41,8 @@ target_link_libraries(test_hybrid_motion_validator ${MOVEIT_LIB_NAME} ${OMPL_LIB
 add_executable(main src/main.cpp)
 target_link_libraries(main ${MOVEIT_LIB_NAME} ${OMPL_LIBRARIES} ${catkin_LIBRARIES} ${Boost_LIBRARIES})
 
+add_executable(davinci_needle_handoff_performance_test test/davinci_needle_handoff_performance_test.cpp)
+target_link_libraries(davinci_needle_handoff_performance_test ${MOVEIT_LIB_NAME} ${OMPL_LIBRARIES} ${catkin_LIBRARIES} ${Boost_LIBRARIES})
 #add_executable(moveit_ompl_planner src/ompl_planner.cpp)
 #target_link_libraries(moveit_ompl_planner ${MOVEIT_LIB_NAME})
 #set_target_properties(moveit_ompl_planner PROPERTIES LINK_FLAGS "${OpenMP_CXX_FLAGS}")

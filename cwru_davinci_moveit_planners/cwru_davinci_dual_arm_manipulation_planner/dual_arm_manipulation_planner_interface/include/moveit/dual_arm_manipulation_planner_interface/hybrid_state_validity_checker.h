@@ -64,7 +64,7 @@ public:
                              const std::string &object_name,
                              const ompl::base::SpaceInformationPtr &si);
 
-  virtual ~HybridStateValidityChecker(){};
+  virtual ~HybridStateValidityChecker() {kmodel_.reset();}
 
   virtual bool isValid(const ompl::base::State* state) const override;
 
@@ -99,6 +99,10 @@ protected:
                  const std::string &tip_frame,
                  const Eigen::Affine3d &tip_pose_wrt_world) const;
 
+  void publishRobotState(const robot_state::RobotState& rstate) const;
+
+  ros::Publisher robot_state_publisher_;
+
   ros::NodeHandle node_handle_;
 
   HybridObjectStateSpace* hyStateSpace_;
@@ -128,8 +132,8 @@ protected:
   std::vector<shapes::ShapeConstPtr> needleShapes_;
 
   boost::shared_ptr<kinematics::KinematicsBase> psm_one_kinematics_solver_;
-  boost::shared_ptr<kinematics::KinematicsBase> psm_two_kinematics_solver_;  boost::shared_ptr<pluginlib::ClassLoader<kinematics::KinematicsBase> >
-    kinematics_loader_;
+  boost::shared_ptr<kinematics::KinematicsBase> psm_two_kinematics_solver_;
+  boost::shared_ptr<pluginlib::ClassLoader<kinematics::KinematicsBase>> kinematics_loader_;
 };
 }
 

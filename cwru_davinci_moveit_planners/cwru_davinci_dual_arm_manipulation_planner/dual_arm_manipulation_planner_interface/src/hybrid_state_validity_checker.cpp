@@ -38,6 +38,9 @@
 #include <moveit/dual_arm_manipulation_planner_interface/hybrid_state_validity_checker.h>
 #include <geometric_shapes/shape_operations.h>
 
+#include <moveit/robot_state/conversions.h>
+
+
 using namespace dual_arm_manipulation_planner_interface;
 //using namespace davinci_moveit_object_handling;
 
@@ -72,6 +75,8 @@ HybridStateValidityChecker::HybridStateValidityChecker(const ros::NodeHandle &no
   hyStateSpace_->validity_checking_duration_ = std::chrono::duration<double>::zero();
 
   hyStateSpace_->validty_check_num = 0;
+
+//  robot_state_publisher_ = node_handle_.advertise<moveit_msgs::DisplayRobotState>("collision_check_robot_state", 1);
 
   loadNeedleModel();
 }
@@ -109,24 +114,20 @@ bool HybridStateValidityChecker::isValid(const ompl::base::State *state) const
 
       // TODO check feasibility
       planning_scene_->setCurrentState(*kstate);
-//      if (!planning_scene_->isStateFeasible(*kstate))
-//        printf("Invalid State: State is not feasible.");
-//      else
-//      {
       // check collision avoidance
       collision_detection::CollisionResult res;
       planning_scene_->checkCollisionUnpadded(collision_request_simple_, res, *kstate);
-//  if(res.collision)
-//  {
-//    ROS_INFO("Invalid State: Robot state is in collision with planning scene. \n");
-//    collision_detection::CollisionResult::ContactMap contactMap = res.contacts;
-//    for(collision_detection::CollisionResult::ContactMap::const_iterator it = contactMap.begin(); it != contactMap.end(); ++it)
-//    {
-//      ROS_INFO("Contact between: %s and %s \n", it->first.first.c_str(), it->first.second.c_str());
-//    }
-//  }
-//
-//        kstate->printStatePositions(std::cout);
+//      if(res.collision)
+//      {
+//        ROS_INFO("Invalid State: Robot state is in collision with planning scene. \n");
+//        collision_detection::CollisionResult::ContactMap contactMap = res.contacts;
+//        for(collision_detection::CollisionResult::ContactMap::const_iterator it = contactMap.begin(); it != contactMap.end(); ++it)
+//        {
+//          ROS_INFO("Contact between: %s and %s \n", it->first.first.c_str(), it->first.second.c_str());
+//        }
+//        publishRobotState(*kstate);
+//      }
+
       needle_model.release();
       kstate->clearAttachedBodies();
       is_valid = !res.collision;
@@ -206,8 +207,8 @@ bool HybridStateValidityChecker::convertObjectToRobotState(robot_state::RobotSta
     Eigen::Affine3d tool_tip_pose = object_pose * grasp_pose.inverse();
 
     const robot_state::JointModelGroup *selected_joint_model_group = rstate.getJointModelGroup(selected_group_name);
-    std::size_t attempts = 1;
-    double timeout = 0.1;
+    std::size_t attempts = 2;
+    double timeout = 0.025;
     bool found_ik = rstate.setFromIK(selected_joint_model_group, tool_tip_pose, attempts, timeout);
 
 //  bool found_ik = setFromIK(rstate, selected_joint_model_group, selected_group_name,
@@ -308,6 +309,20 @@ void HybridStateValidityChecker::initializeIKPlugin()
   double search_discretization = 0.025;
   psm_one_kinematics_solver_->initialize(robot_name_, "psm_one", "PSM1_psm_base_link", "PSM1_tool_tip_link", search_discretization);
   psm_two_kinematics_solver_->initialize(robot_name_, "psm_two", "PSM2_psm_base_link", "PSM2_tool_tip_link", search_discretization);
+}
+
+void HybridStateValidityChecker::publishRobotState(const robot_state::RobotState& rstate) const
+{
+  moveit_msgs::DisplayRobotState drstate;
+  robot_state_publisher_.publish(drstate);
+  ros::spinOnce();
+  ros::Duration(1.0).sleep();
+
+  moveit::core::robotStateToRobotStateMsg(rstate, drstate.state);
+
+  robot_state_publisher_.publish(drstate);
+  ros::spinOnce();
+  ros::Duration(1.0).sleep();
 }
 
 bool HybridStateValidityChecker::setFromIK(robot_state::RobotState &rstate,

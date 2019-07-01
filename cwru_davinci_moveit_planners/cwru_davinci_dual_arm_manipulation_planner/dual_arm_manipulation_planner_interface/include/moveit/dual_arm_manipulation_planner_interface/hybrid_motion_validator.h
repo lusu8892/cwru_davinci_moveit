@@ -61,7 +61,7 @@ public:
                         const std::string &object_name,
                         const ompl::base::SpaceInformationPtr &si);
 
-  ~HybridMotionValidator() override = default;
+  virtual ~HybridMotionValidator() {kmodel_.reset();}
 
   virtual bool checkMotion (const ompl::base::State *s1, const ompl::base::State *s2) const;
 
@@ -74,7 +74,8 @@ public:
   bool planHandoff(const robot_state::RobotState &start_state,
                    const robot_state::RobotState &goal_state,
                    const std::string &ss_active_group,
-                   const std::string &gs_active_group) const;
+                   const std::string &gs_active_group,
+                   const HybridObjectStateSpace::StateType* stateType) const;
 
   bool planNeedleGrasping(const robot_state::RobotState &start_state,
                           const robot_state::RobotState &handoff_state,
@@ -105,7 +106,8 @@ private:
 
   bool planObjectTransit(const robot_state::RobotState &start_state,
                          const robot_state::RobotState &goal_state,
-                         const std::string &planning_group) const;
+                         const std::string &planning_group,
+                         const HybridObjectStateSpace::StateType *stateType) const;
 
   bool noCollision(const robot_state::RobotState& rstate) const;
 
@@ -122,7 +124,6 @@ private:
                  const std::string &planning_group,
                  const std::string &tip_frame,
                  const Eigen::Affine3d& tip_pose_wrt_world) const;
-
 
   void publishRobotState(const robot_state::RobotState& rstate) const;
 

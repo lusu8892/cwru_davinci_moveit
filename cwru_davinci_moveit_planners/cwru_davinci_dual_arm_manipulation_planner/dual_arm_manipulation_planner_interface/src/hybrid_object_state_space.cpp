@@ -40,7 +40,6 @@
 #include <moveit/dual_arm_manipulation_planner_interface/parameterization/hybrid_object_state_space.h>
 #include <ompl/base/ValidStateSampler.h>
 #include <unordered_set>
-#include <ompl/util/RandomNumbers.h>
 
 using namespace dual_arm_manipulation_planner_interface;
 using namespace ompl::base;
@@ -62,6 +61,7 @@ void HybridStateSampler::sampleUniform(State *state)
   ompl::base::DiscreteStateSampler grasp_index_sampler(hyStateSpace_->getSubspace(2).get());
 
   auto *hss = static_cast<HybridObjectStateSpace::StateType *>(state);
+  hss->clearKnownInformation();
 
   arm_index_sampler.sampleUniform(&hss->armIndex());
   grasp_index_sampler.sampleUniform(&hss->graspIndex());
@@ -171,26 +171,33 @@ void HybridObjectStateSpace::resetTimer()
   HybridObjectStateSpace::hand_off_failed_num = 0;
 }
 
-void HybridObjectStateSpace::printExecutionDuration()
+void HybridObjectStateSpace::printExecutionDuration(double* total_time, bool verbose)
 {
-  std::cout << "Sampling Elapsed duration and times of called: " << sampling_duration_.count() << "s and " << sampling_num <<"\n"
-            << "Validity Check Elapsed duration and times of called: " << validity_checking_duration_.count() << "s and " << validty_check_num <<"\n"
-            << "Interpolation Elapsed duration: " << interpolation_duration_.count() << "s\n"
-            << "Interplate function has been called: " << call_interpolation_num << " times\n"
-            << "Compute IK Elapsed duration in Interpolation function: " << compute_ik_duration_.count() << "s\n"
-            << "Check Motion Elapsed duration: " << check_motion_duration_.count() << "s\n"
-            << "Check Motion has been called: " << check_motion_num << " times\n"
-            << "Object Transit Motion Planning Elapsed duration: " << object_transit_planning_duration_.count() << "s\n"
-            << "Object Transit Motion Planner has been called: " << object_transit_motion_planner_num << " times\n"
-            << "Handoff Elapsed duration: " << hand_off_duration_.count() << "s\n"
-            << "Handoff Planning has been called: " << hand_off_planning_num << " times\n"
-            << "Handoff Planning Failed times: " << hand_off_failed_num << "\n"
-            << "IK sovling Elapsed Time in Check Motion: " << ik_solving_duration_.count() << "s\n"
-            << "Local Planner Collision Check Elapsed Time: " << collision_checking_duration_.count() << "s\n"
-            << "Choose Grasp Function Elapsed Time: " << choose_grasp_duration_.count() << std::endl;
 
-  std::chrono::duration<double> total_time = sampling_duration_ + validity_checking_duration_ + interpolation_duration_ + check_motion_duration_;
-  std::cout << "Total Time is: " << total_time.count() << "s\n";
+  if(verbose)
+    std::cout << "Sampling Elapsed duration and times of called: " << sampling_duration_.count() << "s and "
+              << sampling_num << "\n"
+              << "Validity Check Elapsed duration and times of called: " << validity_checking_duration_.count()
+              << "s and " << validty_check_num << "\n"
+              << "Interpolation Elapsed duration: " << interpolation_duration_.count() << "s\n"
+              << "Interplate function has been called: " << call_interpolation_num << " times\n"
+              << "Compute IK Elapsed duration in Interpolation function: " << compute_ik_duration_.count() << "s\n"
+              << "Check Motion Elapsed duration: " << check_motion_duration_.count() << "s\n"
+              << "Check Motion has been called: " << check_motion_num << " times\n"
+              << "Object Transit Motion Planning Elapsed duration: " << object_transit_planning_duration_.count()
+              << "s\n"
+              << "Object Transit Motion Planner has been called: " << object_transit_motion_planner_num << " times\n"
+              << "Handoff Elapsed duration: " << hand_off_duration_.count() << "s\n"
+              << "Handoff Planning has been called: " << hand_off_planning_num << " times\n"
+              << "Handoff Planning Failed times: " << hand_off_failed_num << "\n"
+              << "IK sovling Elapsed Time in Check Motion: " << ik_solving_duration_.count() << "s\n"
+              << "Local Planner Collision Check Elapsed Time: " << collision_checking_duration_.count() << "s\n"
+              << "Choose Grasp Function Elapsed Time: " << choose_grasp_duration_.count() << std::endl;
+
+  std::chrono::duration<double> total_time_chro =
+    sampling_duration_ + validity_checking_duration_ + interpolation_duration_ + check_motion_duration_;
+  *total_time = total_time_chro.count();
+  std::cout << "Total Time is: " << total_time_chro.count() << "s" << std::endl;
 }
 
 void HybridObjectStateSpace::setSE3Bounds(const RealVectorBounds &bounds)
@@ -279,8 +286,16 @@ double HybridObjectStateSpace::distance(const State *state1, const State *state2
     }
   }
 
-  int scale = 100;
-  total_dist = scale * num_handoff + se3_dist;
+  if (num_handoff == 1)
+  {
+    double scale = 1.0;
+    total_dist = scale * num_handoff + se3_dist;
+  }
+  else
+  {
+    double scale = 100.0;
+    total_dist = scale * num_handoff + se3_dist;
+  }
 
   return total_dist;
 }
@@ -478,13 +493,13 @@ void HybridObjectStateSpace::interpolate(const State *from,
   call_interpolation_num += 1;
 }
 
-void HybridObjectStateSpace::copyToReals(std::vector<double> &reals, const State *source) const
-{
-  auto *hysource = static_cast<const StateType *>(source);
-  components_[0]->copyToReals(reals, hysource->components[0]);
-  reals.push_back(hysource->armIndex().value);
-  reals.push_back(hysource->graspIndex().value);
-}
+//void HybridObjectStateSpace::copyToReals(std::vector<double> &reals, const State *source) const
+//{
+//  auto *hysource = static_cast<const StateType *>(source);
+//  components_[0]->copyToReals(reals, hysource->components[0]);
+//  reals.push_back(hysource->armIndex().value);
+//  reals.push_back(hysource->graspIndex().value);
+//}
 
 void HybridObjectStateSpace::se3ToEigen3d(const StateType *state, Eigen::Affine3d& affine3d) const
 {
@@ -765,8 +780,8 @@ bool HybridObjectStateSpace::computeStateIK(StateType *hystate) const
   Eigen::Affine3d tool_tip_pose = object_pose * grasp_pose.inverse();
 
   const robot_state::JointModelGroup *selected_joint_model_group = rstate->getJointModelGroup(planning_group);
-  std::size_t attempts = 1;
-  double timeout = 0.02;
+  std::size_t attempts = 2;
+  double timeout = 0.025;
 
   bool found_ik = rstate->setFromIK(selected_joint_model_group, tool_tip_pose, attempts, timeout);
 //  bool found_ik = setFromIK(*rstate, selected_joint_model_group, planning_group,
