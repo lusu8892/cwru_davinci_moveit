@@ -37,7 +37,7 @@ target_link_libraries(hybrid_motion_validator_tester ${OMPL_LIBRARIES} ${catkin_
 add_executable(main src/main.cpp)
 target_link_libraries(main ${MOVEIT_LIB_NAME} ${OMPL_LIBRARIES} ${catkin_LIBRARIES} ${Boost_LIBRARIES})
 
-add_executable(davinci_needle_handoff_performance_test test/davinci_needle_handoff_performance_test.cpp)
+add_executable(davinci_needle_handoff_performance_test src/davinci_needle_handoff_performance_test.cpp)
 target_link_libraries(davinci_needle_handoff_performance_test ${MOVEIT_LIB_NAME} ${OMPL_LIBRARIES} ${catkin_LIBRARIES} ${Boost_LIBRARIES})
 #add_executable(moveit_ompl_planner src/ompl_planner.cpp)
 #target_link_libraries(moveit_ompl_planner ${MOVEIT_LIB_NAME})
