@@ -175,7 +175,7 @@ void plan(const ros::NodeHandle &node_handle,
     slnPath.printAsMatrix(outFile);
     outFile.close();
 
-    std::cout << "Writing PlannerData to file’./myPlannerData’" << std::endl;
+    std::cout << "Writing PlannerData to file’ HybridRRTPlannerData’" << std::endl;
     ob::PlannerData data(si);
     planner->getPlannerData(data);
     data.computeEdgeWeights();
@@ -184,8 +184,9 @@ void plan(const ros::NodeHandle &node_handle,
     std::cout << "Found " << data.numEdges() << " edges " << "\n";
     std::cout << "Actual Planning Time is: " << planning_time.count() << std::endl;
 
-//    ob::PlannerDataStorage dataStorage;
-//    dataStorage.store(data, std::cout);
+    ob::PlannerDataStorage dataStorage;
+    std::string dataPath = ros::package::getPath("cwru_davinci_dual_arm_manipulation_planner");
+    dataStorage.store(data, (dataPath + "/../../../" + "HybridRRTPlannerData").c_str());
   }
   else
     std::cout << "No solution found" << std::endl;
