@@ -40,7 +40,9 @@
 #define CWRU_DAVINCI_DUAL_ARM_MANIPULATION_PLANNER_DAVINCI_NEEDLE_HANDOFF_EXECUTION_MANAGER_H
 
 //moveit
-#include <moveit/move_group_interface/move_group_interface.h>
+//#include <moveit/move_group_interface/move_group_interface.h>
+
+#include <cwru_davinci/uv_control/psm_interface.h>
 
 //ompl
 #include <ompl/geometric/PathGeometric.h>
@@ -98,9 +100,8 @@ private:
   HybridObjectHandoffPlannerPtr                                   m_pHandoffPlanner = nullptr;
 
   ompl::base::PlannerStatus                                       m_PlanningStatus = ompl::base::PlannerStatus::UNKNOWN;
-  std::unique_ptr<MoveGroupInterface>                             m_pSupportArmGroup;
 
-  std::unique_ptr<MoveGroupInterface>                             m_pSupportArmEefGroup;
+  PSMInterfacePtr                                                 m_pSupportArmGroup;
 
   ros::Subscriber                                                 m_NeedlePoseSub;
 

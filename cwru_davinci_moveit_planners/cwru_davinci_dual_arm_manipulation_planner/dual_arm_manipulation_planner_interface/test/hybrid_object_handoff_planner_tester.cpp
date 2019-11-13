@@ -203,6 +203,8 @@ void HybridObjectHandoffPlannerTester::testConnectStates()
   for (std::size_t i = 0; i < m_SlnStates.size(); ++i)
   {
     m_SlnHYStates[i] = m_SlnStates[i]->as<HybridObjectStateSpace::StateType>();
+    m_SlnHYStates[i]->markValid();
+    m_SlnHYStates[i]->setJointsComputed(true);
     EXPECT_TRUE(m_SlnHYStates[i]);
   }
 
@@ -295,6 +297,49 @@ const HybridObjectStateSpace::StateType* pHyToState
   const robot_state::RobotStatePtr pRobotToState(new robot_state::RobotState(m_pHyStateValidator->robotModel()));
   EXPECT_TRUE(pRobotToState);
   EXPECT_TRUE(m_pHyStateValidator->hybridStateToRobotStateNoAttachedObject(pHyToState, pRobotToState));
+
+  //  Debug handoff state
+  {
+    const robot_state::RobotStatePtr pRobotFromState(new robot_state::RobotState(m_pHyStateValidator->robotModel()));
+    EXPECT_TRUE(pRobotFromState);
+    EXPECT_TRUE(m_pHyStateValidator->hybridStateToRobotState(pHyFromState, pRobotFromState));
+
+    const robot_state::RobotStatePtr pRobotToState(new robot_state::RobotState(m_pHyStateValidator->robotModel()));
+    EXPECT_TRUE(pRobotToState);
+    EXPECT_TRUE(m_pHyStateValidator->hybridStateToRobotState(pHyToState, pRobotToState));
+
+    const robot_state::RobotStatePtr pHandoffState(new robot_state::RobotState(*pRobotFromState));
+
+    std::vector<double> gs_jt_position;
+    pRobotToState->copyJointGroupPositions(toSupportGroup, gs_jt_position);
+    pHandoffState->setJointGroupPositions(toSupportGroup, gs_jt_position);
+    m_pHyStateValidator->setMimicJointPositions(pHandoffState, toSupportGroup);
+
+    const moveit::core::AttachedBody* ss_needle_body = pRobotFromState->getAttachedBody("needle_r");
+    const moveit::core::AttachedBody* gs_needle_body = pRobotToState->getAttachedBody("needle_r");
+
+    std::set<std::string> touch_links = ss_needle_body->getTouchLinks();
+    touch_links.insert(gs_needle_body->getTouchLinks().begin(), gs_needle_body->getTouchLinks().end());
+
+    trajectory_msgs::JointTrajectory dettach_posture = ss_needle_body->getDetachPosture();
+    trajectory_msgs::JointTrajectory gs_dettach_posture = gs_needle_body->getDetachPosture();
+
+    dettach_posture.joint_names.insert(dettach_posture.joint_names.end(),
+                                       gs_dettach_posture.joint_names.begin(),
+                                       gs_dettach_posture.joint_names.end());
+
+    dettach_posture.points.insert(dettach_posture.points.end(),
+                                  gs_dettach_posture.points.begin(),
+                                  gs_dettach_posture.points.end());
+
+
+    pHandoffState->attachBody(gs_needle_body->getName(), gs_needle_body->getShapes(),
+                              gs_needle_body->getFixedTransforms(), touch_links,
+                              gs_needle_body->getAttachedLinkName(), gs_needle_body->getDetachPosture());
+    pHandoffState->update();
+    m_pHyStateValidator->publishRobotState(*pHandoffState);
+    ros::Duration(3.0).sleep();
+  }
 
   std::vector<double> jointHomePosition = {0.0, 0.0, 0.016, 0.0, 0.0, 0.0};
   EXPECT_EQ(jointHomePosition.size(), jntTrajectoryBtwStates[0].second.begin()->second[0].size());

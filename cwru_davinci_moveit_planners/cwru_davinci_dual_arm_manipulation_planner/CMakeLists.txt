@@ -17,6 +17,7 @@ find_package(catkin REQUIRED COMPONENTS
   cwru_davinci_grasp
   roscpp
   tf
+  uv_control
 )
 
 ## System dependencies are found with CMake's conventions
@@ -115,7 +116,7 @@ catkin_package(
   ${OMPL_INCLUDE_DIRS}
   LIBRARIES dual_arm_manipulation_planner_interface
   ${OMPL_LIBRARIES}
-  CATKIN_DEPENDS eigen_conversions moveit_core moveit_ros_planning moveit_ros_planning_interface moveit_visual_tools roscpp cwru_davinci_grasp
+  CATKIN_DEPENDS eigen_conversions moveit_core moveit_ros_planning moveit_ros_planning_interface moveit_visual_tools roscpp cwru_davinci_grasp uv_control
 #  DEPENDS system_lib
 )
 

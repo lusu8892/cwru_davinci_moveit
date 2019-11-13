@@ -103,6 +103,12 @@ PathJointTrajectory& handoffPathJntTraj
   dataStorage.store(data, (dataPath + "/../../../" + "HybridRRTPlannerData").c_str());
 
   const std::vector<ob::State*>& constSlnStates = slnPath->getStates();
+  for (std::size_t i = 0; i < slnPath->getStateCount(); i++)
+  {
+    (constSlnStates[i]->as<HybridObjectStateSpace::StateType>())->markValid();
+    (constSlnStates[i]->as<HybridObjectStateSpace::StateType>())->setJointsComputed(true);
+  }
+
   const size_t segments = slnPath->getStateCount() - 1;
 
   handoffPathJntTraj.clear();
