@@ -57,36 +57,36 @@ TEST(TestHybridRRT, HybridObjectHandoffPlanner)
                                           robotModelLoader.getModel());
   tester.testConnectStates();
 
-  const ompl::base::SpaceInformationPtr& si = tester.getSpaceInformation();
-  // create a random start state
-  ob::ScopedState<HybridObjectStateSpace> start(si);
-  ob::ScopedState<HybridObjectStateSpace> goal(si);
+//  const ompl::base::SpaceInformationPtr& si = tester.getSpaceInformation();
+//  // create a random start state
+//  ob::ScopedState<HybridObjectStateSpace> start(si);
+//  ob::ScopedState<HybridObjectStateSpace> goal(si);
 
-  ob::StateSamplerPtr pStateSampler = si->allocStateSampler();
+//  ob::StateSamplerPtr pStateSampler = si->allocStateSampler();
 
-  EXPECT_TRUE(!tester.testSetupProblemDefinition(nullptr, nullptr));
-  bool validSS = false;
-  while (!validSS)
-  {
-    pStateSampler->sampleUniform(start.get());
-    validSS = si->isValid(start.get());
-  }
+//  EXPECT_TRUE(!tester.testSetupProblemDefinition(nullptr, nullptr));
+//  bool validSS = false;
+//  while (!validSS)
+//  {
+//    pStateSampler->sampleUniform(start.get());
+//    validSS = si->isValid(start.get());
+//  }
 
-  bool validGS = false;
-  while (!validGS)
-  {
-    pStateSampler->sampleUniform(goal.get());
-    validGS = si->isValid(goal.get());
-  }
+//  bool validGS = false;
+//  while (!validGS)
+//  {
+//    pStateSampler->sampleUniform(goal.get());
+//    validGS = si->isValid(goal.get());
+//  }
 
-  EXPECT_TRUE(tester.testSetupProblemDefinition(start.get(), goal.get()));
-  EXPECT_TRUE(tester.testSetupPlanner());
+//  EXPECT_TRUE(tester.testSetupProblemDefinition(start.get(), goal.get()));
+//  EXPECT_TRUE(tester.testSetupPlanner());
 
-  ob::PlannerStatus::StatusType status = tester.testSolve(0.0);
-  EXPECT_EQ(ob::PlannerStatus::StatusType::TIMEOUT, status);
+//  ob::PlannerStatus::StatusType status = tester.testSolve(0.0);
+//  EXPECT_EQ(ob::PlannerStatus::StatusType::TIMEOUT, status);
 
-  status = tester.testSolve(100.0);
-  EXPECT_EQ(ob::PlannerStatus::StatusType::EXACT_SOLUTION, status);
+//  status = tester.testSolve(100.0);
+//  EXPECT_EQ(ob::PlannerStatus::StatusType::EXACT_SOLUTION, status);
 }
 
 int main(int argc, char** argv)

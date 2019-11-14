@@ -101,7 +101,9 @@ private:
 
   ompl::base::PlannerStatus                                       m_PlanningStatus = ompl::base::PlannerStatus::UNKNOWN;
 
-  PSMInterfacePtr                                                 m_pSupportArmGroup;
+  std::unique_ptr<MoveGroupInterface>                             m_pSupportArmGroup;
+
+  std::unique_ptr<MoveGroupInterface>                             m_pSupportArmEefGroup;
 
   ros::Subscriber                                                 m_NeedlePoseSub;
 
