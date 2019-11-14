@@ -70,8 +70,6 @@ namespace davinci_moveit_object_handling
     ros::Duration(0.2).sleep();
   }
 
-
-
   DavinciMoveitCollisionMatrixManipulator::~DavinciMoveitCollisionMatrixManipulator()
   {
 
@@ -116,7 +114,6 @@ namespace davinci_moveit_object_handling
     moveit_planning_scene_diff_publisher_.publish(planning_scene);
     return true;
   }
-
 
   bool DavinciMoveitCollisionMatrixManipulator::addAllowedMoveitCollision(const std::string &name,
                                                                           const std::vector<std::string> &link_names)

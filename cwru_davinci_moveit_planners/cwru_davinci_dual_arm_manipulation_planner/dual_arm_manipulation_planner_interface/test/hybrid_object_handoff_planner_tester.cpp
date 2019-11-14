@@ -110,6 +110,11 @@ public:
   (
   ) const;
 
+  bool testGetSolutionPathJointTrajectory
+  (
+  PathJointTrajectory& handoffPathJntTraj
+  );
+
 protected:
   void getSolutionPathFromData();
 
@@ -132,7 +137,6 @@ protected:
 protected:
   std::vector<ob::State* >                           m_SlnStates;
   std::unique_ptr<og::PathGeometric>                 m_pPath;
-//  robot_model::RobotModelPtr m_pRobotModel;
 };
 
 HybridObjectHandoffPlannerTester::HybridObjectHandoffPlannerTester
@@ -190,6 +194,41 @@ ob::PlannerStatus::StatusType HybridObjectHandoffPlannerTester::testSolve
 )
 {
   return solve(solveTime);
+}
+
+bool HybridObjectHandoffPlannerTester::testGetSolutionPathJointTrajectory
+(
+PathJointTrajectory& handoffPathJntTraj
+)
+{
+  getSolutionPathFromData();
+  EXPECT_TRUE(!m_SlnStates.empty());
+
+  std::vector<HybridObjectStateSpace::StateType*> m_SlnHYStates;
+  m_SlnHYStates.resize(m_SlnStates.size());
+
+  for (std::size_t i = 0; i < m_SlnStates.size(); ++i)
+  {
+    m_SlnHYStates[i] = m_SlnStates[i]->as<HybridObjectStateSpace::StateType>();
+    m_SlnHYStates[i]->markValid();
+    m_SlnHYStates[i]->setJointsComputed(true);
+    EXPECT_TRUE(m_SlnHYStates[i]);
+  }
+
+  const size_t segments = m_SlnStates.size() - 1;
+
+  handoffPathJntTraj.clear();
+  handoffPathJntTraj.resize(segments);
+  for (size_t i = 0; i < segments; ++i)
+  {
+    MoveGroupJointTrajectory jntTrajectoryBtwStates;
+    if (!connectStates(m_SlnHYStates[i], m_SlnHYStates[i + 1], jntTrajectoryBtwStates))
+    {
+      return false;
+    }
+    handoffPathJntTraj[i] = jntTrajectoryBtwStates;
+  }
+  return true;
 }
 
 void HybridObjectHandoffPlannerTester::testConnectStates()
@@ -254,6 +293,24 @@ const HybridObjectStateSpace::StateType* pHyToState
   sameRobotState(pRobotToState, jntTrajectoryBtwStates[0].second.begin()->second.back(), supportGroup);
 
   testCartesianPath(jntTrajectoryBtwStates[0].second);
+
+  //  Debug handoff state
+  {
+    const robot_state::RobotStatePtr pRobotFromState(new robot_state::RobotState(m_pHyStateValidator->robotModel()));
+    EXPECT_TRUE(pRobotFromState);
+    EXPECT_TRUE(m_pHyStateValidator->hybridStateToRobotState(pHyFromState, pRobotFromState));
+
+    const robot_state::RobotStatePtr pRobotToState(new robot_state::RobotState(m_pHyStateValidator->robotModel()));
+    EXPECT_TRUE(pRobotToState);
+    EXPECT_TRUE(m_pHyStateValidator->hybridStateToRobotState(pHyToState, pRobotToState));
+
+    const robot_state::RobotStatePtr pHandoffState(new robot_state::RobotState(*pRobotFromState));
+
+    m_pHyStateValidator->publishRobotState(*pRobotFromState);
+    ros::Duration(3.0).sleep();
+    m_pHyStateValidator->publishRobotState(*pRobotToState);
+    ros::Duration(3.0).sleep();
+  }
 }
 
 void HybridObjectHandoffPlannerTester::testPlanHandoff
@@ -460,7 +517,7 @@ const MoveGroupJointTrajectorySegment& jntTrajSeg
     pRobotState->getJointModelGroup(moveGroup)->getOnlyOneEndEffectorTip());
 
     double distDiff = distance(headTipPose, postTipPose);
-    EXPECT_LE(distDiff, 0.001);
+    EXPECT_LE(distDiff, 0.003);
     headTipPose = postTipPose;
   }
 }

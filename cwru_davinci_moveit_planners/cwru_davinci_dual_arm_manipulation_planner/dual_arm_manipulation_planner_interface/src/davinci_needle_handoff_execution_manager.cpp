@@ -56,19 +56,23 @@ const std::string& robotDescription
    m_RobotModelLoader(robotDescription)
 {
   m_pHandoffPlanner = std::make_shared<HybridObjectHandoffPlanner>();
+  m_pCollisionMatManip = std::make_unique<davinci_moveit_object_handling::DavinciMoveitCollisionMatrixManipulator>(m_NodeHandle);
 }
 
 DavinciNeedleHandoffExecutionManager::~DavinciNeedleHandoffExecutionManager
 (
 )
 {
-  m_pHandoffPlanner->m_pHyStateSpace->freeState(m_pHyStartState);
-  m_pHandoffPlanner->m_pHyStateSpace->freeState(m_pHyGoalState);
+  if (m_pHyStartState && m_pHyGoalState)
+  {
+    m_pHandoffPlanner->m_pHyStateSpace->freeState(m_pHyStartState);
+    m_pHandoffPlanner->m_pHyStateSpace->freeState(m_pHyGoalState);
+  }
 }
 
-bool DavinciNeedleHandoffExecutionManager::executeNeedleHandoffTrajy
-  (
-  )
+bool DavinciNeedleHandoffExecutionManager::executeNeedleHandoffTraj
+(
+)
 {
   moveit_msgs::MoveItErrorCodes errorCodes;
   if (!m_PlanningStatus == ob::PlannerStatus::EXACT_SOLUTION || m_HandoffJntTraj.empty())
@@ -101,6 +105,7 @@ bool DavinciNeedleHandoffExecutionManager::executeNeedleHandoffTrajy
     }
     else if (m_HandoffJntTraj[i].size() == 4)  // object Transfer
     {
+      m_pSupportArmGroup->detachObject(m_ObjectName);
       // move in fashion: home to pregrasp, approach-grasp, ungrasp-retreat, back to home
       const MoveGroupJointTrajectorySegment& safePlaceToPreGraspJntTrajSeg = m_HandoffJntTraj[i][0].second;
       m_pSupportArmGroup.reset(new MoveGroupInterface(safePlaceToPreGraspJntTrajSeg.begin()->first));
@@ -126,7 +131,6 @@ bool DavinciNeedleHandoffExecutionManager::executeNeedleHandoffTrajy
       {
         const JointTrajectory& armJntTra = preGraspToGraspedJntTrajSeg.begin()->second;
         const JointTrajectory& gripperJntTra = (++preGraspToGraspedJntTrajSeg.begin())->second;
-
         for (std::size_t j = 0; j < armJntTra.size(); ++j)
         {
           m_pSupportArmGroup->setJointValueTarget(armJntTra[j]);
@@ -139,6 +143,7 @@ bool DavinciNeedleHandoffExecutionManager::executeNeedleHandoffTrajy
             return false;
           }
 
+          m_pCollisionMatManip->addAllowedMoveitCollision(m_ObjectName, m_pSupportArmEefGroup->getLinkNames());
           m_pSupportArmEefGroup->setJointValueTarget(gripperJntTra[j]);
           m_pSupportArmEefGroup->move();
           errorCodes = m_pSupportArmEefGroup->move();
@@ -149,11 +154,13 @@ bool DavinciNeedleHandoffExecutionManager::executeNeedleHandoffTrajy
             return false;
           }
         }
+        m_pSupportArmEefGroup->attachObject(m_ObjectName);
       }
 
       const MoveGroupJointTrajectorySegment& graspToUngraspedJntSeg = m_HandoffJntTraj[i][2].second;
       m_pSupportArmGroup.reset(new MoveGroupInterface(graspToUngraspedJntSeg.begin()->first));
       m_pSupportArmEefGroup.reset(new MoveGroupInterface((++graspToUngraspedJntSeg.begin())->first));
+      m_pSupportArmEefGroup->detachObject(m_ObjectName);
       {
         const JointTrajectory& armJntTra = graspToUngraspedJntSeg.begin()->second;
         const JointTrajectory& gripperJntTra = (++graspToUngraspedJntSeg.begin())->second;
@@ -171,6 +178,7 @@ bool DavinciNeedleHandoffExecutionManager::executeNeedleHandoffTrajy
           }
 
           m_pSupportArmEefGroup->setJointValueTarget(gripperJntTra[j]);
+          m_pCollisionMatManip->addAllowedMoveitCollision(m_ObjectName, m_pSupportArmEefGroup->getLinkNames());
           m_pSupportArmEefGroup->move();
           errorCodes = m_pSupportArmEefGroup->move();
           if (errorCodes.val != errorCodes.SUCCESS)

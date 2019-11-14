@@ -37,25 +37,68 @@
 #include <ros/ros.h>
 #include <cwru_davinci_grasp/davinci_needle_grasper_base.h>
 #include "hybrid_object_handoff_planner_tester.cpp"
+#include "../../../../../../devel/include/ompl/base/PlannerStatus.h"
+
+#include <dual_arm_manipulation_planner_interface/davinci_needle_handoff_execution_manager.h>
 
 using namespace dual_arm_manipulation_planner_interface;
 using namespace hybrid_planner_test;
 namespace ob = ompl::base;
 
+class DavinciNeedleHandoffExecutionManagerTester : public DavinciNeedleHandoffExecutionManager
+{
+public:
+  DavinciNeedleHandoffExecutionManagerTester
+  (
+  const ros::NodeHandle& nodeHandle,
+  const std::string& objectName
+  )
+  : DavinciNeedleHandoffExecutionManager()
+  {
+    m_ObjectName = objectName;
+    m_PlanningStatus = ob::PlannerStatus::EXACT_SOLUTION;
+    m_pCollisionMatManip = std::make_unique<davinci_moveit_object_handling::DavinciMoveitCollisionMatrixManipulator>(m_NodeHandle);
+  }
+
+  bool testExecuteNeedleHandoffTraj
+  (
+  const PathJointTrajectory& handoffPathJntTraj
+  )
+  {
+    m_HandoffJntTraj = handoffPathJntTraj;
+    return executeNeedleHandoffTraj();
+  }
+};
+
 TEST(TestHybridRRT, HybridObjectHandoffPlanner)
 {
+  ros::NodeHandle nodeHandle;
   ros::NodeHandle nodeHandlePriv("~");
   robot_model_loader::RobotModelLoader robotModelLoader("robot_description");
 
-  cwru_davinci_grasp::DavinciNeedleGrasperBasePtr simpleGrasp =
-  boost::make_shared<cwru_davinci_grasp::DavinciNeedleGrasperBase>(nodeHandlePriv,
-                                                                   "psm_one",
-                                                                   "psm_one_gripper");
+  EXPECT_TRUE(nodeHandlePriv.hasParam("object_name"));
+  std::string objectName;
+  nodeHandlePriv.getParam("object_name", objectName);
 
+  EXPECT_TRUE(nodeHandlePriv.hasParam("initial_support_arm"));
+  std::string initialSupportArm;
+  nodeHandlePriv.getParam("initial_support_arm", initialSupportArm);
 
-  HybridObjectHandoffPlannerTester tester(simpleGrasp->getAllPossibleNeedleGrasps(false),
+  cwru_davinci_grasp::DavinciSimpleNeedleGrasperPtr pSimpleGrasp =
+  boost::make_shared<cwru_davinci_grasp::DavinciSimpleNeedleGrasper>(nodeHandle,
+                                                                     nodeHandlePriv,
+                                                                     initialSupportArm,
+                                                                     objectName);
+
+  EXPECT_TRUE(pSimpleGrasp->pickNeedle(cwru_davinci_grasp::NeedlePickMode::FINDGOOD, objectName));
+
+  HybridObjectHandoffPlannerTester tester(pSimpleGrasp->getAllPossibleNeedleGrasps(false),
                                           robotModelLoader.getModel());
-  tester.testConnectStates();
+
+  DavinciNeedleHandoffExecutionManagerTester managerTester(nodeHandle, objectName);
+  PathJointTrajectory handoffPathJntTraj;
+  tester.testGetSolutionPathJointTrajectory(handoffPathJntTraj);
+  EXPECT_TRUE(managerTester.testExecuteNeedleHandoffTraj(handoffPathJntTraj));
 
 //  const ompl::base::SpaceInformationPtr& si = tester.getSpaceInformation();
 //  // create a random start state
@@ -93,7 +136,8 @@ int main(int argc, char** argv)
 {
   testing::InitGoogleTest(&argc, argv);
   ros::init(argc, argv, "test_hybrid_object_handoff_planner");
-  ros::NodeHandle nh;
+  ros::AsyncSpinner spinner(1);
   ros::Duration(3.0).sleep();
+  spinner.start();
   return RUN_ALL_TESTS();
 }

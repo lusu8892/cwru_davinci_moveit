@@ -18,6 +18,7 @@ find_package(catkin REQUIRED COMPONENTS
   roscpp
   tf
   uv_control
+  std_srvs
 )
 
 ## System dependencies are found with CMake's conventions
