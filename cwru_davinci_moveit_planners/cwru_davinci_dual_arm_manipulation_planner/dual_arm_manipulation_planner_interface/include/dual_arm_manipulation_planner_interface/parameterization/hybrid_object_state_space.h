@@ -61,6 +61,13 @@ enum class StateDiff
   AllDiff
 };
 
+typedef std::vector<double> JointTrajectoryPoint;
+typedef std::vector<JointTrajectoryPoint> JointTrajectory;
+typedef std::string MoveGroup;
+typedef std::map<MoveGroup, JointTrajectory>  MoveGroupJointTrajectorySegment;
+typedef std::vector<std::pair<TrajectoryType, MoveGroupJointTrajectorySegment>> MoveGroupJointTrajectory;
+typedef std::vector<MoveGroupJointTrajectory> PathJointTrajectory;
+
 OMPL_CLASS_FORWARD(HybridObjectStateSpace);
 
 class HybridStateSampler : public ompl::base::StateSampler
@@ -145,9 +152,12 @@ public:
       JOINTS_COMPUTED = 256
     };
 
+    typedef std::pair<StateType*, MoveGroupJointTrajectory> ToStateTrajectorySegment;
+    typedef std::vector<ToStateTrajectorySegment> TrajectorySegment;
 
     StateType() : ompl::base::CompoundStateSpace::StateType(), flags(0)
     {
+      TrajectorySegment.clear();
     }
 
     void markInvalid()
@@ -212,7 +222,6 @@ public:
       return *as<ompl::base::DiscreteStateSpace::StateType>(1);
     }
 
-
     /**
      * @brief Get the arm index components of the state and allow changing it as well
      * @return
@@ -250,13 +259,30 @@ public:
       return *as<ompl::base::RealVectorStateSpace::StateType>(3);
     }
 
+    const MoveGroupJointTrajectory& moveGroupJointTrajectoryToState
+    (
+    const StateType* toState
+    )
+    {
+      for (std::size_t i = 0; i < m_TrajSegment.size(); ++i)
+      {
+        if (equalStates(toState, m_TrajSegment[i].first())
+        {
+          return m_TrajSegment[i].second();
+        }
+      }
+      return MoveGroupJointTrajectory();
+    }
+
     void clearJointValues() const
     {
       auto *rstate = as<ompl::base::RealVectorStateSpace::StateType>(3);
       delete[] rstate->values;
       delete rstate;
     }
+
     int flags;
+    TrajectorySegment m_TrajSegment;
   };
 
   HybridObjectStateSpace
