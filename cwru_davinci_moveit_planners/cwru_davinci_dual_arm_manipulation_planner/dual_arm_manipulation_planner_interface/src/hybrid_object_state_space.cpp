@@ -445,7 +445,7 @@ const State* source
 {
   ompl::base::CompoundStateSpace::copyState(destination, source);
   destination->as<StateType>()->flags = source->as<StateType>()->flags;
-  destination->as<StateType>()->TrajectorySegment = source->as<StateType>()->TrajectorySegment;
+  destination->as<StateType>()->m_TrajSegment = source->as<StateType>()->m_TrajSegment;
 }
 
 bool HybridObjectStateSpace::equalStates

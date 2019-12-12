@@ -51,21 +51,12 @@
 namespace dual_arm_manipulation_planner_interface
 {
 
-enum class TrajectoryType
-{
-  ObjectTransit,
-  SafePlaceToPreGrasp,
-  PreGraspToGrasped,
-  GraspedToUngrasped,
-  UngrasedToSafePlace
-};
-
-typedef std::vector<double> JointTrajectoryPoint;
-typedef std::vector<JointTrajectoryPoint> JointTrajectory;
-typedef std::string MoveGroup;
-typedef std::map<MoveGroup, JointTrajectory>  MoveGroupJointTrajectorySegment;
-typedef std::vector<std::pair<TrajectoryType, MoveGroupJointTrajectorySegment>> MoveGroupJointTrajectory;
-typedef std::vector<MoveGroupJointTrajectory> PathJointTrajectory;
+ typedef std::vector<double> JointTrajectoryPoint;
+ typedef std::vector<JointTrajectoryPoint> JointTrajectory;
+ typedef std::string MoveGroup;
+ typedef std::map<MoveGroup, JointTrajectory>  MoveGroupJointTrajectorySegment;
+ typedef std::vector<std::pair<TrajectoryType, MoveGroupJointTrajectorySegment>> MoveGroupJointTrajectory;
+ typedef std::vector<MoveGroupJointTrajectory> PathJointTrajectory;
 
 class HybridObjectHandoffPlanner
 {

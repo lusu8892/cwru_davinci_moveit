@@ -87,10 +87,19 @@ public:
     return false;
   }
 
+  bool planObjectTransit
+  (
+  const robot_state::RobotState& start_state,
+  const robot_state::RobotState& goal_state,
+  MoveGroupJointTrajectory& jntTrajectoryBtwStates,
+  const std::string& planning_group
+  ) const;
+
   bool planHandoff
   (
   const robot_state::RobotState& start_state,
   const robot_state::RobotState& goal_state,
+  MoveGroupJointTrajectory& jntTrajectoryBtwStates,
   const std::string& ss_active_group,
   const std::string& gs_active_group
   ) const;
@@ -99,6 +108,7 @@ public:
   (
   const robot_state::RobotState& start_state,
   const robot_state::RobotState& handoff_state,
+  MoveGroupJointTrajectory& jntTrajectoryBtwStates,
   const std::string& gs_active_group
   ) const;
 
@@ -106,6 +116,7 @@ public:
   (
   const robot_state::RobotState& handoff_state,
   const robot_state::RobotState& goal_state,
+  MoveGroupJointTrajectory& jntTrajectoryBtwStates,
   const std::string& ss_active_group
   ) const;
 
@@ -114,6 +125,7 @@ protected:
   (
   const robot_state::RobotState& start_state,
   const robot_state::RobotState& pre_grasp_state,
+  MoveGroupJointTrajectory& jntTrajectoryBtwStates,
   const std::string& planning_group
   ) const;
 
@@ -121,6 +133,7 @@ protected:
   (
   robot_state::RobotStatePtr& pre_grasp_state,
   const robot_state::RobotState& handoff_state,
+  MoveGroupJointTrajectory& jntTrajectoryBtwStates,
   const std::string& planning_group
   ) const;
 
@@ -128,6 +141,7 @@ protected:
   (
   const robot_state::RobotState& handoff_state,
   robot_state::RobotStatePtr& ungrasped_state,
+  MoveGroupJointTrajectory& jntTrajectoryBtwStates,
   const std::string& planning_group
   ) const;
 
@@ -135,13 +149,7 @@ protected:
   (
   const robot_state::RobotState& ungrasped_state,
   const robot_state::RobotState& goal_state,
-  const std::string& planning_group
-  ) const;
-
-  bool planObjectTransit
-  (
-  const robot_state::RobotState& start_state,
-  const robot_state::RobotState& goal_state,
+  MoveGroupJointTrajectory& jntTrajectoryBtwStates,
   const std::string& planning_group
   ) const;
 

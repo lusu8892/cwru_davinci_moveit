@@ -61,6 +61,15 @@ enum class StateDiff
   AllDiff
 };
 
+enum class TrajectoryType
+{
+  ObjectTransit,
+  SafePlaceToPreGrasp,
+  PreGraspToGrasped,
+  GraspedToUngrasped,
+  UngrasedToSafePlace
+};
+
 typedef std::vector<double> JointTrajectoryPoint;
 typedef std::vector<JointTrajectoryPoint> JointTrajectory;
 typedef std::string MoveGroup;
@@ -142,6 +151,9 @@ public:
 
   static int hand_off_failed_num;
 
+  typedef std::pair<const StateType*, MoveGroupJointTrajectory> ToStateTrajectorySegment;
+  typedef std::vector<ToStateTrajectorySegment> TrajectorySegment;
+
   class StateType : public ompl::base::CompoundStateSpace::StateType
   {
   public:
@@ -152,12 +164,9 @@ public:
       JOINTS_COMPUTED = 256
     };
 
-    typedef std::pair<StateType*, MoveGroupJointTrajectory> ToStateTrajectorySegment;
-    typedef std::vector<ToStateTrajectorySegment> TrajectorySegment;
-
     StateType() : ompl::base::CompoundStateSpace::StateType(), flags(0)
     {
-      TrajectorySegment.clear();
+      m_TrajSegment.clear();
     }
 
     void markInvalid()
@@ -261,17 +270,19 @@ public:
 
     const MoveGroupJointTrajectory& moveGroupJointTrajectoryToState
     (
+    const HybridObjectStateSpace* pHybridSpace,
     const StateType* toState
     )
     {
       for (std::size_t i = 0; i < m_TrajSegment.size(); ++i)
       {
-        if (equalStates(toState, m_TrajSegment[i].first())
+        if (pHybridSpace->equalStates(toState, m_TrajSegment[i].first))
         {
-          return m_TrajSegment[i].second();
+          return m_TrajSegment[i].second;
         }
       }
-      return MoveGroupJointTrajectory();
+      static MoveGroupJointTrajectory emptyJntTraj;
+      return emptyJntTraj;
     }
 
     void clearJointValues() const

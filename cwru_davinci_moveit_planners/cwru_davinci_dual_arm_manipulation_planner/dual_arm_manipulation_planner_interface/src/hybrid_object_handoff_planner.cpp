@@ -126,14 +126,20 @@ PathJointTrajectory& handoffPathJntTraj
 
   handoffPathJntTraj.clear();
   handoffPathJntTraj.resize(segments);
+//  for (size_t i = 0; i < segments; ++i)
+//  {
+//    MoveGroupJointTrajectory jntTrajectoryBtwStates;
+//    if (!connectStates(constSlnStates[i], constSlnStates[i + 1], jntTrajectoryBtwStates))
+//    {
+//      return false;
+//    }
+//    handoffPathJntTraj[i] = jntTrajectoryBtwStates;
+//  }
   for (size_t i = 0; i < segments; ++i)
   {
-    MoveGroupJointTrajectory jntTrajectoryBtwStates;
-    if (!connectStates(constSlnStates[i], constSlnStates[i + 1], jntTrajectoryBtwStates))
-    {
-      return false;
-    }
-    handoffPathJntTraj[i] = jntTrajectoryBtwStates;
+    HybridObjectStateSpace::StateType* pHybridFromState = constSlnStates[i]->as<HybridObjectStateSpace::StateType>();
+    HybridObjectStateSpace::StateType* pHybridToState = constSlnStates[i+1]->as<HybridObjectStateSpace::StateType>();
+    handoffPathJntTraj[i] = pHybridFromState->moveGroupJointTrajectoryToState(m_pHyStateSpace.get(), pHybridToState);
   }
   return true;
 }

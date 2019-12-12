@@ -125,6 +125,7 @@ const ompl::base::State* s2
     const std::string supportGroupS1 = (pHyState1->armIndex().value == 1) ? "psm_one" : "psm_two";
     const std::string supportGroupS2 = (pHyState2->armIndex().value == 1) ? "psm_one" : "psm_two";
 
+    MoveGroupJointTrajectory jntTrajectoryBtwStates;
     switch (hyStateSpace_->checkStateDiff(pHyState1, pHyState2))
     {
       case StateDiff::AllSame:
@@ -132,20 +133,26 @@ const ompl::base::State* s2
         break;
       case StateDiff::PoseDiffArmAndGraspSame:
       {
-        result = planObjectTransit(*start_state, *goal_state, supportGroupS1);
+        result = planObjectTransit(*start_state, *goal_state, jntTrajectoryBtwStates, supportGroupS1);
         auto finish = std::chrono::high_resolution_clock::now();
         std::chrono::duration<double> elapsed = finish - start;
         hyStateSpace_->object_transit_planning_duration_ += elapsed;
         break;
       }
       case StateDiff::ArmAndGraspDiffPoseSame:
-        result = planHandoff(*start_state, *goal_state, supportGroupS1, supportGroupS2);
+        result = planHandoff(*start_state, *goal_state, jntTrajectoryBtwStates, supportGroupS1, supportGroupS2);
         if (!result)
           hyStateSpace_->hand_off_failed_num += 1;
         break;
       default:
         // should not be there
         break;
+    }
+
+    if (result)
+    {
+      HybridObjectStateSpace::ToStateTrajectorySegment toStateTrajSeg(pHyState2, jntTrajectoryBtwStates);
+      const_cast<HybridObjectStateSpace::StateType*>(pHyState1)->m_TrajSegment.push_back(toStateTrajSeg);
     }
 
     result ? valid_++ : invalid_++;
@@ -164,6 +171,7 @@ bool HybridMotionValidator::planHandoff
 (
 const robot_state::RobotState& start_state,
 const robot_state::RobotState& goal_state,
+MoveGroupJointTrajectory& jntTrajectoryBtwStates,
 const std::string& ss_active_group,
 const std::string& gs_active_group
 ) const
@@ -216,11 +224,13 @@ const std::string& gs_active_group
   }
 
   // publishRobotState(*handoff_state);
+  jntTrajectoryBtwStates.clear();
+  jntTrajectoryBtwStates.resize(4);
 
-  able_to_grasp = planNeedleGrasping(start_state, *handoff_state, gs_active_group);
+  able_to_grasp = planNeedleGrasping(start_state, *handoff_state, jntTrajectoryBtwStates, gs_active_group);
   if (able_to_grasp)
   {
-    able_to_release = planNeedleReleasing(*handoff_state, goal_state, ss_active_group);
+    able_to_release = planNeedleReleasing(*handoff_state, goal_state, jntTrajectoryBtwStates, ss_active_group);
     if (able_to_release)
       able_to_handoff = true;
   }
@@ -235,29 +245,15 @@ bool HybridMotionValidator::planNeedleGrasping
 (
 const robot_state::RobotState& start_state,
 const robot_state::RobotState& handoff_state,
+MoveGroupJointTrajectory& jntTrajectoryBtwStates,
 const std::string& gs_active_group
 ) const
 {
   // planning in a back order fashion
   robot_state::RobotStatePtr pre_grasp_state(new robot_state::RobotState(start_state));
-  if (!planPreGraspStateToGraspedState(pre_grasp_state, handoff_state, gs_active_group))
+  if (!planPreGraspStateToGraspedState(pre_grasp_state, handoff_state, jntTrajectoryBtwStates, gs_active_group))
     return false;
-  if (!planSafeStateToPreGraspState(start_state, *pre_grasp_state, gs_active_group))
-    return false;
-  return true;
-}
-
-bool HybridMotionValidator::planNeedleReleasing
-(
-const robot_state::RobotState& handoff_state,
-const robot_state::RobotState& goal_state,
-const std::string& ss_active_group
-) const
-{
-  robot_state::RobotStatePtr ungrasped_state(new robot_state::RobotState(goal_state));
-
-  planGraspStateToUngraspedState(handoff_state, ungrasped_state, ss_active_group);
-  if (!planUngraspedStateToSafeState(*ungrasped_state, goal_state, ss_active_group))
+  if (!planSafeStateToPreGraspState(start_state, *pre_grasp_state, jntTrajectoryBtwStates, gs_active_group))
     return false;
   return true;
 }
@@ -266,6 +262,7 @@ bool HybridMotionValidator::planPreGraspStateToGraspedState
 (
 robot_state::RobotStatePtr& pre_grasp_state,
 const robot_state::RobotState& handoff_state,
+MoveGroupJointTrajectory& jntTrajectoryBtwStates,
 const std::string& planning_group
 ) const
 {
@@ -341,6 +338,14 @@ const std::string& planning_group
 
   // publishRobotState(*pre_grasp_state);
 
+  JointTrajectory toSupportGroupJntTraj;
+  toSupportGroupJntTraj.resize(traj.size());
+  handoff_state.copyJointGroupPositions(planning_group, toSupportGroupJntTraj[traj.size() - 1]);
+
+  JointTrajectory toSupportEefGroupJntTraj;
+  toSupportEefGroupJntTraj.resize(traj.size());
+  handoff_state.copyJointGroupPositions(eef_group_name, toSupportEefGroupJntTraj[traj.size() - 1]);
+
   const moveit::core::AttachedBody* hdof_needle_body = handoff_state.getAttachedBody(m_ObjectName);
 
   traj.back()->attachBody(hdof_needle_body->getName(), hdof_needle_body->getShapes(),
@@ -364,7 +369,14 @@ const std::string& planning_group
       // publishRobotState(*traj[i]);
       return clear_path;
     }
+    traj[i]->copyJointGroupPositions(planning_group, toSupportGroupJntTraj[i]);
+    traj[i]->copyJointGroupPositions(eef_group_name, toSupportEefGroupJntTraj[i]);
   }
+
+  MoveGroupJointTrajectorySegment preGraspToGraspedJntTrajSeg = {{planning_group, toSupportGroupJntTraj},
+                                                                 {eef_group_name, toSupportEefGroupJntTraj}};
+  jntTrajectoryBtwStates[1] = std::make_pair(TrajectoryType::PreGraspToGrasped, preGraspToGraspedJntTrajSeg);
+
   pre_grasp_state.reset(new robot_state::RobotState(*traj[0]));
   pre_grasp_state->update();
 
@@ -372,11 +384,11 @@ const std::string& planning_group
   return clear_path;
 }
 
-
 bool HybridMotionValidator::planSafeStateToPreGraspState
 (
 const robot_state::RobotState& start_state,
 const robot_state::RobotState& pre_grasp_state,
+MoveGroupJointTrajectory& jntTrajectoryBtwStates,
 const std::string& planning_group
 ) const
 {
@@ -410,6 +422,10 @@ const std::string& planning_group
   cp_start_state->update();
   // publishRobotState(*cp_start_state);
 
+  JointTrajectory toSupportGroupJntTraj;
+  toSupportGroupJntTraj.resize(traj.size());
+  pre_grasp_state.copyJointGroupPositions(planning_group, toSupportGroupJntTraj[traj.size() - 1]);
+
   for (std::size_t i = 0; i < traj.size(); ++i)
   {
     setMimicJointPositions(traj[i], planning_group);
@@ -420,15 +436,36 @@ const std::string& planning_group
       // publishRobotState(*traj[i]);
       return clear_path;
     }
+    traj[i]->copyJointGroupPositions(planning_group, toSupportGroupJntTraj[i]);
   }
+
+  MoveGroupJointTrajectorySegment safePlaceToPreGraspJntTrajSeg = {{planning_group, toSupportGroupJntTraj}};
+  jntTrajectoryBtwStates[0] = std::make_pair(TrajectoryType::SafePlaceToPreGrasp, safePlaceToPreGraspJntTrajSeg);
   clear_path = true;
   return clear_path;
+}
+
+bool HybridMotionValidator::planNeedleReleasing
+(
+const robot_state::RobotState& handoff_state,
+const robot_state::RobotState& goal_state,
+MoveGroupJointTrajectory& jntTrajectoryBtwStates,
+const std::string& ss_active_group
+) const
+{
+  robot_state::RobotStatePtr ungrasped_state(new robot_state::RobotState(goal_state));
+
+  planGraspStateToUngraspedState(handoff_state, ungrasped_state, jntTrajectoryBtwStates, ss_active_group);
+  if (!planUngraspedStateToSafeState(*ungrasped_state, goal_state, jntTrajectoryBtwStates, ss_active_group))
+    return false;
+  return true;
 }
 
 bool HybridMotionValidator::planGraspStateToUngraspedState
 (
 const robot_state::RobotState& handoff_state,
 robot_state::RobotStatePtr& ungrasped_state,
+MoveGroupJointTrajectory& jntTrajectoryBtwStates,
 const std::string& planning_group
 ) const
 {
@@ -496,6 +533,15 @@ const std::string& planning_group
   }
 
   ungrasped_state->setToDefaultValues(ungrasped_state->getJointModelGroup(eef_group_name), eef_group_name + "_home");
+  ungrasped_state->update();
+
+  JointTrajectory fromSupportGroupJntTraj;
+  fromSupportGroupJntTraj.resize(traj.size());
+  ungrasped_state->copyJointGroupPositions(planning_group, fromSupportGroupJntTraj[traj.size() - 1]);
+
+  JointTrajectory fromSupportEefGroupJntTraj;
+  fromSupportEefGroupJntTraj.resize(traj.size());
+  ungrasped_state->copyJointGroupPositions(eef_group_name, fromSupportEefGroupJntTraj[traj.size() - 1]);
 
   for (std::size_t i = 0; i < traj.size(); ++i)
   {
@@ -509,12 +555,24 @@ const std::string& planning_group
       {
         ungrasped_state.reset(new robot_state::RobotState(*traj[i - 1]));
         ungrasped_state->update();
+
+        MoveGroupJointTrajectorySegment graspToUngraspedJntSeg = {{planning_group,    fromSupportGroupJntTraj},
+                                                                  {eef_group_name, fromSupportEefGroupJntTraj}};
+        jntTrajectoryBtwStates[2] = std::make_pair(TrajectoryType::GraspedToUngrasped, graspToUngraspedJntSeg);
+
         clear_path = true;
         return clear_path;
       }
       return clear_path;
     }
+    traj[i]->copyJointGroupPositions(planning_group, fromSupportGroupJntTraj[i]);
+    traj[i]->copyJointGroupPositions(eef_group_name, fromSupportEefGroupJntTraj[i]);
   }
+
+  MoveGroupJointTrajectorySegment graspToUngraspedJntSeg = {{planning_group,    fromSupportGroupJntTraj},
+                                                            {eef_group_name, fromSupportEefGroupJntTraj}};
+  jntTrajectoryBtwStates[2] = std::make_pair(TrajectoryType::GraspedToUngrasped, graspToUngraspedJntSeg);
+
   clear_path = true;
   return clear_path;
 }
@@ -523,6 +581,7 @@ bool HybridMotionValidator::planUngraspedStateToSafeState
 (
 const robot_state::RobotState& ungrasped_state,
 const robot_state::RobotState& goal_state,
+MoveGroupJointTrajectory& jntTrajectoryBtwStates,
 const std::string& planning_group
 ) const
 {
@@ -555,7 +614,10 @@ const std::string& planning_group
   // removable
   setMimicJointPositions(cp_start_state, planning_group);
   cp_start_state->update();
-  // publishRobotState(*cp_start_state);
+
+  JointTrajectory fromSupportGroupJntTraj;
+  fromSupportGroupJntTraj.resize(traj.size());
+  goal_state.copyJointGroupPositions(planning_group, fromSupportGroupJntTraj[traj.size() - 1]);
 
   for (std::size_t i = 0; i < traj.size(); ++i)
   {
@@ -567,7 +629,13 @@ const std::string& planning_group
       // publishRobotState(*traj[i]);
       return clear_path;
     }
+
+    traj[i]->copyJointGroupPositions(planning_group, fromSupportGroupJntTraj[i]);
   }
+
+  MoveGroupJointTrajectorySegment ungraspedToSafePlaceJntTrajSeg = {{planning_group, fromSupportGroupJntTraj}};
+  jntTrajectoryBtwStates[3] = std::make_pair(TrajectoryType::UngrasedToSafePlace, ungraspedToSafePlaceJntTrajSeg);
+
   clear_path = true;
   return clear_path;
 }
@@ -576,6 +644,7 @@ bool HybridMotionValidator::planObjectTransit
 (
 const robot_state::RobotState& start_state,
 const robot_state::RobotState& goal_state,
+MoveGroupJointTrajectory& jntTrajectoryBtwStates,
 const std::string& planning_group
 ) const
 {
@@ -610,6 +679,10 @@ const std::string& planning_group
   cp_start_state->update();
   // publishRobotState(*cp_start_state);
 
+  JointTrajectory supportGroupJntTraj;
+  supportGroupJntTraj.resize(traj.size());
+  goal_state.copyJointGroupPositions(planning_group, supportGroupJntTraj[traj.size() - 1]);
+
   for (std::size_t i = 0; i < traj.size(); ++i)
   {
     setMimicJointPositions(traj[i], planning_group);
@@ -620,7 +693,14 @@ const std::string& planning_group
       // publishRobotState(*traj[i]);
       return clear_path;
     }
+    traj[i]->copyJointGroupPositions(planning_group, supportGroupJntTraj[i]);
   }
+
+  MoveGroupJointTrajectorySegment jntTrajSegment = {{planning_group, supportGroupJntTraj}};
+  jntTrajectoryBtwStates.clear();
+  jntTrajectoryBtwStates.resize(1);
+  jntTrajectoryBtwStates[0] = std::make_pair(TrajectoryType::ObjectTransit, jntTrajSegment);
+
   clear_path = true;
   return clear_path;
 }
