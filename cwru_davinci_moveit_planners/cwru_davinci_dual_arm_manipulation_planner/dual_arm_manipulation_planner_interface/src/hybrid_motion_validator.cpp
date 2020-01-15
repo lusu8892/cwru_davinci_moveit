@@ -43,6 +43,8 @@
 // collision
 #include <moveit/collision_detection/collision_tools.h>
 
+#include <utility>
+
 using namespace dual_arm_manipulation_planner_interface;
 
 HybridMotionValidator::HybridMotionValidator
@@ -151,7 +153,7 @@ const ompl::base::State* s2
 
     if (result)
     {
-      HybridObjectStateSpace::ToStateTrajectorySegment toStateTrajSeg(pHyState2, jntTrajectoryBtwStates);
+      HybridObjectStateSpace::ToStateTrajectorySegment toStateTrajSeg(std::shared_ptr<const HybridObjectStateSpace::StateType>(pHyState2), jntTrajectoryBtwStates);
       const_cast<HybridObjectStateSpace::StateType*>(pHyState1)->m_TrajSegment.push_back(toStateTrajSeg);
     }
 

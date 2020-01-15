@@ -151,7 +151,7 @@ public:
 
   static int hand_off_failed_num;
 
-  typedef std::pair<const StateType*, MoveGroupJointTrajectory> ToStateTrajectorySegment;
+  typedef std::pair<std::shared_ptr<const StateType>, MoveGroupJointTrajectory> ToStateTrajectorySegment;
   typedef std::vector<ToStateTrajectorySegment> TrajectorySegment;
 
   class StateType : public ompl::base::CompoundStateSpace::StateType
@@ -167,6 +167,27 @@ public:
     StateType() : ompl::base::CompoundStateSpace::StateType(), flags(0)
     {
       m_TrajSegment.clear();
+    }
+
+    virtual ~StateType() override {};
+
+    StateType
+    (
+    const StateType& state
+    ) : ompl::base::CompoundStateSpace::StateType(), flags(0)
+    {
+      m_TrajSegment.clear();
+      this->se3State().setXYZ(state.se3State().getX(),
+                              state.se3State().getY(),
+                              state.se3State().getZ());
+      this->se3State().rotation().x = state.se3State().rotation().x;
+      this->se3State().rotation().y = state.se3State().rotation().y;
+      this->se3State().rotation().z = state.se3State().rotation().z;
+      this->se3State().rotation().w = state.se3State().rotation().w;
+      this->graspIndex().value = state.graspIndex().value;
+      this->armIndex().value = state.armIndex().value;
+      this->flags = state.flags;
+      this->m_TrajSegment = state.m_TrajSegment;
     }
 
     void markInvalid()
@@ -271,12 +292,12 @@ public:
     const MoveGroupJointTrajectory& moveGroupJointTrajectoryToState
     (
     const HybridObjectStateSpace* pHybridSpace,
-    const StateType* toState
+    const ompl::base::State* toState
     )
     {
       for (std::size_t i = 0; i < m_TrajSegment.size(); ++i)
       {
-        if (pHybridSpace->equalStates(toState, m_TrajSegment[i].first))
+        if (pHybridSpace->equalStates(toState, m_TrajSegment[i].first.get()))
         {
           return m_TrajSegment[i].second;
         }
