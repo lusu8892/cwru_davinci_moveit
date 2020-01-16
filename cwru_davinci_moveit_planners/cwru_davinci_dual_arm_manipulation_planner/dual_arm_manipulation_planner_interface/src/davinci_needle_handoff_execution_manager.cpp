@@ -122,12 +122,14 @@ bool DavinciNeedleHandoffExecutionManager::executeNeedleHandoffTraj
 
       const MoveGroupJointTrajectorySegment& preGraspToGraspedJntTrajSeg = m_HandoffJntTraj[i][1].second;
       m_pSupportArmGroup.reset(new psm_interface_calibration(preGraspToGraspedJntTrajSeg.begin()->first, m_NodeHandle));
+      // open gripper of incoming supporting arm
+      m_pSupportArmGroup->control_jaw(0.5, 0.2);
+
       m_pMoveItSupportArmGroupInterf.reset(new MoveGroupInterface(preGraspToGraspedJntTrajSeg.begin()->first));
       turnOnStickyFinger(m_pSupportArmGroup->get_psm_name());
       {
         const JointTrajectory& armJntTra = preGraspToGraspedJntTrajSeg.begin()->second;
-        const JointTrajectory& gripperJntTra = (++preGraspToGraspedJntTrajSeg.begin())->second;
-        if (!m_pSupportArmGroup->execute_trajectory(armJntTra, gripperJntTra, 0.3))
+        if (!m_pSupportArmGroup->execute_trajectory(armJntTra, 0.5, 0.3))
         {
           ROS_INFO("DavinciNeedleHandoffExecutionManager: Failed to execute handoff trajectories");
           return false;
@@ -135,18 +137,26 @@ bool DavinciNeedleHandoffExecutionManager::executeNeedleHandoffTraj
         m_pMoveItSupportArmGroupInterf->attachObject(m_ObjectName);
       }
 
+      // close gripper of incoming supporting arm
+      m_pSupportArmGroup->control_jaw(0.0, 0.2);
+
       const MoveGroupJointTrajectorySegment& graspToUngraspedJntSeg = m_HandoffJntTraj[i][2].second;
       m_pSupportArmGroup.reset(new psm_interface_calibration(graspToUngraspedJntSeg.begin()->first, m_NodeHandle));
+      // open gripper of incoming supporting arm
+      m_pSupportArmGroup->control_jaw(0.5, 0.2);
+
       turnOffStickyFinger(m_pSupportArmGroup->get_psm_name());
       {
         const JointTrajectory& armJntTra = graspToUngraspedJntSeg.begin()->second;
-        const JointTrajectory& gripperJntTra = (++graspToUngraspedJntSeg.begin())->second;
-        if (!m_pSupportArmGroup->execute_trajectory(armJntTra, gripperJntTra, 0.3))
+        if (!m_pSupportArmGroup->execute_trajectory(armJntTra, 0.5, 0.3))
         {
           ROS_INFO("DavinciNeedleHandoffExecutionManager: Failed to execute handoff trajectories");
           return false;
         }
       }
+
+      // close gripper of incoming supporting arm
+      m_pSupportArmGroup->control_jaw(0.0, 0.2);
 
       const MoveGroupJointTrajectorySegment& ungraspedToSafePlaceJntTrajSeg = m_HandoffJntTraj[i][3].second;
       m_pSupportArmGroup.reset(new psm_interface_calibration(ungraspedToSafePlaceJntTrajSeg.begin()->first, m_NodeHandle));
