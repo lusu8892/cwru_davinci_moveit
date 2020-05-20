@@ -138,6 +138,13 @@ protected:
   const std::string& planning_group
   ) const;
 
+  void checkCollisionMultiThreads
+  (
+  bool & clear_path,
+  const std::vector<robot_state::RobotStatePtr>& traj,
+  const std::string& planning_group
+  ) const;
+
 protected:
   ros::NodeHandle                           node_priv_;
 };

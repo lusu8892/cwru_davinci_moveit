@@ -284,15 +284,9 @@ const std::string& planning_group
     return clear_path;
   }
 
-  for (std::size_t i = 0; i < traj.size(); ++i)
-  {
-    setMimicJointPositions(traj[i], planning_group);
-    traj[i]->update();
-    if (!noCollision(*traj[i]))  // check intermediate states
-    {
-      return clear_path;
-    }
-  }
+  checkCollisionMultiThreads(clear_path, traj, planning_group);
+  if (!clear_path)
+    return clear_path;
 
   pre_grasp_state.reset(new robot_state::RobotState(*traj[0]));
   for (std::size_t i = 0; i < eef_joint_position.size(); ++i)
@@ -303,39 +297,6 @@ const std::string& planning_group
   pre_grasp_state->update();
   clear_path = true;
   return clear_path;
-
-  // const int num_threads = traj.size();
-  // std::vector<std::thread> threads;
-  // std::vector<uint8_t> result(num_threads, false);
-
-  // for (std::size_t i = 0; i < num_threads; ++i)
-  // {
-  //   setMimicJointPositions(traj[i], planning_group);
-  //   traj[i]->update();
-  //   threads.push_back(std::thread(&HybridMotionValidator::noCollisionThread, this, std::ref(result[i]), std::cref(*traj[i])));
-  // }
-
-  // for (std::thread &t : threads)
-  // {
-  //   if (t.joinable())
-  //   {
-  //     t.join();
-  //   }
-  // }
-
-  // for (uint8_t &r : result)
-  // {
-  //   if (r == 0)
-  //   {
-  //     return clear_path;
-  //   }
-  // }
-
-  // pre_grasp_state.reset(new robot_state::RobotState(*traj[0]));
-  // pre_grasp_state->update();
-
-  // clear_path = true;
-  // return clear_path;
 }
 
 
@@ -367,47 +328,9 @@ const std::string& planning_group
     return clear_path;
   }
 
-  for (std::size_t i = 0; i < traj.size(); ++i)
-  {
-    setMimicJointPositions(traj[i], planning_group);
-    traj[i]->update();
-    if (!noCollision(*traj[i]))
-    {
-      return clear_path;
-    }
-  }
-  clear_path = true;
+  checkCollisionMultiThreads(clear_path, traj, planning_group);
+
   return clear_path;
-
-  // const int num_threads = traj.size();
-  // std::vector<std::thread> threads;
-  // std::vector<uint8_t> result(num_threads, false);
-
-  // for (std::size_t i = 0; i < num_threads; ++i)
-  // {
-  //   setMimicJointPositions(traj[i], planning_group);
-  //   traj[i]->update();
-  //   threads.push_back(std::thread(&HybridMotionValidator::noCollisionThread, this, std::ref(result[i]), std::cref(*traj[i])));
-  // }
-
-  // for (std::thread &t : threads)
-  // {
-  //   if (t.joinable())
-  //   {
-  //     t.join();
-  //   }
-  // }
-
-  // for (uint8_t &r : result)
-  // {
-  //   if (r == 0)
-  //   {
-  //     return clear_path;
-  //   }
-  // }
-
-  // clear_path = true;
-  // return clear_path;
 }
 
 bool HybridMotionValidator::planGraspStateToUngraspedState
@@ -488,36 +411,6 @@ const std::string& planning_group
   ungrasped_state->update();
   clear_path = true;
   return clear_path;
-
-  // const int num_threads = traj.size();
-  // std::vector<std::thread> threads;
-  // std::vector<uint8_t> result(num_threads, false);
-
-  // for (std::size_t i = 0; i < num_threads; ++i)
-  // {
-  //   setMimicJointPositions(traj[i], planning_group);
-  //   traj[i]->update();
-  //   threads.push_back(std::thread(&HybridMotionValidator::noCollisionThread, this, std::ref(result[i]), std::cref(*traj[i])));
-  // }
-
-  // for (std::thread &t : threads)
-  // {
-  //   if (t.joinable())
-  //   {
-  //     t.join();
-  //   }
-  // }
-
-  // for (uint8_t &r : result)
-  // {
-  //   if (r == 0)
-  //   {
-  //     return clear_path;
-  //   }
-  // }
-
-  // clear_path = true;
-  // return clear_path;
 }
 
 bool HybridMotionValidator::planUngraspedStateToSafeState
@@ -548,47 +441,9 @@ const std::string& planning_group
     return clear_path;
   }
 
-  for (std::size_t i = 0; i < traj.size(); ++i)
-  {
-    setMimicJointPositions(traj[i], planning_group);
-    traj[i]->update();
-    if (!noCollision(*traj[i]))
-    {
-      return clear_path;
-    }
-  }
-  clear_path = true;
+  checkCollisionMultiThreads(clear_path, traj, planning_group);
+
   return clear_path;
-
-  // const int num_threads = traj.size();
-  // std::vector<std::thread> threads;
-  // std::vector<uint8_t> result(num_threads, false);
-
-  // for (std::size_t i = 0; i < num_threads; ++i)
-  // {
-  //   setMimicJointPositions(traj[i], planning_group);
-  //   traj[i]->update();
-  //   threads.push_back(std::thread(&HybridMotionValidator::noCollisionThread, this, std::ref(result[i]), std::cref(*traj[i])));
-  // }
-
-  // for (std::thread &t : threads)
-  // {
-  //   if (t.joinable())
-  //   {
-  //     t.join();
-  //   }
-  // }
-
-  // for (uint8_t &r : result)
-  // {
-  //   if (r == 0)
-  //   {
-  //     return clear_path;
-  //   }
-  // }
-
-  // clear_path = true;
-  // return clear_path;
 }
 
 bool HybridMotionValidator::planObjectTransit
@@ -619,45 +474,64 @@ const std::string& planning_group
     return clear_path;
   }
 
-  for (std::size_t i = 0; i < traj.size(); ++i)
-  {
-    setMimicJointPositions(traj[i], planning_group);
-    traj[i]->update();
-    if (!noCollision(*traj[i]))
-    {
-      return clear_path;
-    }
-  }
-  clear_path = true;
+  checkCollisionMultiThreads(clear_path, traj, planning_group);
   return clear_path;
+}
 
-  // const int num_threads = traj.size();
-  // std::vector<std::thread> threads;
-  // std::vector<uint8_t> result(num_threads, false);
+void HybridMotionValidator::checkCollisionMultiThreads
+(
+bool & clear_path,
+const std::vector<robot_state::RobotStatePtr>& traj,
+const std::string& planning_group
+) const
+{
+  const unsigned int min_per_thread = 2;
+  const unsigned int length = traj.size();
+  const unsigned int max_threads = (length + min_per_thread - 1) / min_per_thread;
 
-  // for (std::size_t i = 0; i < num_threads; ++i)
+  const unsigned int hardware_threads = std::thread::hardware_concurrency();
+  const unsigned int num_threads = std::min((hardware_threads != 0) ? hardware_threads : 4, max_threads);
+
+  const unsigned int block_size = length / num_threads;
+  std::vector<uint8_t> results(num_threads, 0);
+  std::vector<std::thread> threads(num_threads-1);
+
+  std::vector<robot_state::RobotStatePtr>::const_iterator block_start = traj.begin();
+  for (std::size_t i = 0; i < num_threads - 1; ++i)
+  {
+    std::vector<robot_state::RobotStatePtr>::const_iterator block_end = block_start;
+
+    // advance the block_end iterator to the end of the current block
+    std::advance(block_end, block_size);
+
+    // launch a new thread to accumulate the results for the block
+    threads[i] = std::thread(&HybridMotionValidator::noCollisionThread, this,
+                                                                        std::ref(results[i]),
+                                                                        block_start,
+                                                                        block_end,
+                                                                        std::cref(planning_group));
+
+    block_start  = block_end;
+  }
+
+  std::vector<robot_state::RobotStatePtr>::const_iterator last = traj.end();
+  noCollisionThread(results[num_threads-1], block_start, last, planning_group);
+
+  // threads are still running you can not return by now, return must be called after join()
+  // if (results[num_threads-1] != (length - (num_threads - 1) * block_size))
   // {
-  //   setMimicJointPositions(traj[i], planning_group);
-  //   traj[i]->update();
-  //   threads.push_back(std::thread(&HybridMotionValidator::noCollisionThread, this, std::ref(result[i]), std::cref(*traj[i])));
+  //   clear_path = false;
+  //   return;
   // }
 
-  // for (std::thread &t : threads)
-  // {
-  //   if (t.joinable())
-  //   {
-  //     t.join();
-  //   }
-  // }
+  // Once accumulated the results for the last block,
+  // we can wait for all the threads 
+  std::for_each(threads.begin(), threads.end(), std::mem_fn(&std::thread::join));
 
-  // for (uint8_t &r : result)
-  // {
-  //   if (r == 0)
-  //   {
-  //     return clear_path;
-  //   }
-  // }
+  uint8_t sum = 0;
+  for (uint8_t r : results)
+    sum += r;
 
-  // clear_path = true;
-  // return clear_path;
+  if (sum == length)
+    clear_path = true;
 }

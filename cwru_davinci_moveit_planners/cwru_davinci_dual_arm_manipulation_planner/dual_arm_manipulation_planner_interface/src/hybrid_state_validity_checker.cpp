@@ -367,17 +367,27 @@ const robot_state::RobotState& rstate
 void HybridStateValidityChecker::noCollisionThread
 (
 uint8_t& noCollision,
-const robot_state::RobotState& rstate
+std::vector<robot_state::RobotStatePtr>::const_iterator first,
+std::vector<robot_state::RobotStatePtr>::const_iterator last,
+const std::string& planning_group
 ) const
 {
-  std::lock_guard<std::mutex> guard(planning_scene_mutex_);
+//  std::unique_lock<std::mutex> guard(planning_scene_mutex_, std::defer_lock);
+  for (auto it = first; it != last; ++it)
+  {
+//    guard.lock();
+    planning_scene::PlanningScenePtr pPlanScene(new planning_scene::PlanningScene(kmodel_));
+//    guard.unlock();
+    setMimicJointPositions(*it, planning_group);
 
-  planning_scene_->setCurrentState(rstate);
-  collision_detection::CollisionRequest collision_request;
-  collision_request.contacts = true;
-  collision_detection::CollisionResult collision_result;
-  planning_scene_->checkCollision(collision_request, collision_result, rstate);
-  noCollision = (!collision_result.collision) ? 1 : 0;
+    if (!pPlanScene)
+    {
+      noCollision = 0;
+      return;
+    }
+
+    (!pPlanScene->isStateColliding(*(*it))) ? (noCollision += 1) : (noCollision += 0);
+  }
 }
 
 bool HybridStateValidityChecker::isRobotStateValid

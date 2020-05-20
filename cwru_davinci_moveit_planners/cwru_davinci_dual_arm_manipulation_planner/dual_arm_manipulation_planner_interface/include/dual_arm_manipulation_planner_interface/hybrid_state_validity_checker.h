@@ -134,7 +134,9 @@ public:
   void noCollisionThread
   (
   uint8_t& noCollision,
-  const robot_state::RobotState& rstate
+  std::vector<robot_state::RobotStatePtr>::const_iterator first,
+  std::vector<robot_state::RobotStatePtr>::const_iterator last,
+  const std::string& planning_group
   ) const;
 
 protected:
