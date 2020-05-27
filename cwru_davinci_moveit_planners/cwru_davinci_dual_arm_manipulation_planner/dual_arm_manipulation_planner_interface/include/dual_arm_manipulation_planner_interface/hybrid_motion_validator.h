@@ -145,6 +145,35 @@ protected:
   const std::string& planning_group
   ) const;
 
+  double computeCartesianPath
+  (
+  const robot_state::RobotStatePtr& rstate,
+  const std::string& planning_group,
+  std::vector<robot_state::RobotStatePtr>& traj,
+  const robot_state::LinkModel* link,
+  const Eigen::Affine3d& target,
+  bool global_reference_frame,
+  double max_step_d,
+  double jump_threshold_factor
+  ) const;
+
+  void checkIKCollisionMultiThreads
+  (
+  int first,
+  int last,
+  const int& steps,
+  const std::string& planning_group,
+  const Eigen::Quaterniond& start_quaternion,
+  const Eigen::Quaterniond& target_quaternion,
+  const Eigen::Affine3d& rotated_target,
+  const Eigen::Affine3d& start_pose,
+  const robot_state::LinkModel* link,
+  const robot_state::RobotStatePtr& initialRState,
+  const robot_state::GroupStateValidityCallbackFn& validCallback,
+  std::vector<robot_state::RobotStatePtr>& traj,
+  double& block_valid_percentage
+  ) const;
+
 protected:
   ros::NodeHandle                           node_priv_;
 };

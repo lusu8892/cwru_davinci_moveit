@@ -164,7 +164,7 @@ protected:
   // For visualizing things in rviz
   moveit_visual_tools::MoveItVisualToolsPtr visual_tools_;
 
-  mutable std::mutex                        planning_scene_mutex_;
+  static std::mutex                        planning_scene_mutex_;
 };
 
 }

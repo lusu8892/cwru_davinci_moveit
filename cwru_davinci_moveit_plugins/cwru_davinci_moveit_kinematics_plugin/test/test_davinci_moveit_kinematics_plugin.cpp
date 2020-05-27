@@ -369,7 +369,7 @@ TEST(ArmIKPlugin, DISABLED_TestMimicJoints)
   EXPECT_EQ(psm_one_base_active_joints_name[5], "PSM1_outer_wrist_yaw");
 }
 
-TEST(ArmIKPlugin, TestKDLKinematics)
+TEST(ArmIKPlugin, TestInverseKinematics)
 // TEST(ArmIKPlugin, TestKDLKinematics)
 {
   robot_model_loader::RobotModelLoader robotModelLoader("robot_description");
@@ -403,7 +403,7 @@ TEST(ArmIKPlugin, TestKDLKinematics)
   // ik robot state
   const robot_state::RobotStatePtr pRStateIK(new robot_state::RobotState(pKModel));
   pRStateIK->setToDefaultValues();
-  *pRStateIK = *pRStateFK;
+  // *pRStateIK = *pRStateFK;
   const robot_state::JointModelGroup* arm_joint_group_ik = pRStateIK->getJointModelGroup("psm_one");
   std::vector<double> positionByIK;
   int active_joint_num = 6;
@@ -430,14 +430,20 @@ TEST(ArmIKPlugin, TestKDLKinematics)
     const Eigen::Affine3d goal_tool_tip_pose = pRStateFK->getGlobalLinkTransform(tip_link);
 //    const Eigen::Affine3d base_to_world_pose = pRStateFK->getGlobalLinkTransform("PSM1_psm_base_link");
 //    const Eigen::Affine3d tip_to_base_pose = base_to_world_pose.inverse() * goal_tool_tip_pose;
-    bool found_ik = pRStateIK->setFromIK(arm_joint_group_ik, goal_tool_tip_pose, 1, time_out);
+    pRStateIK->setToDefaultValues();
     pRStateIK->update();
-    const robot_state::RobotStatePtr pRStateTest(new robot_state::RobotState(pKModel));
-    pRStateTest->setToDefaultValues();
-    pRStateTest->update();
-    bool found_again = pRStateTest->setFromIK(arm_joint_group_ik, goal_tool_tip_pose, 1, time_out);
+    bool found_ik = pRStateIK->setFromIK(pRStateIK->getJointModelGroup("psm_one"), 
+                                         goal_tool_tip_pose,
+                                         pRStateIK->getJointModelGroup("psm_one")->getOnlyOneEndEffectorTip()->getName(),
+                                         1,
+                                         0.0);
     pRStateIK->update();
-    if(found_ik && found_again)
+    // const robot_state::RobotStatePtr pRStateTest(new robot_state::RobotState(pKModel));
+    // pRStateTest->setToDefaultValues();
+    // pRStateTest->update();
+    // bool found_again = pRStateTest->setFromIK(arm_joint_group_ik, goal_tool_tip_pose, 1, time_out);
+    // pRStateIK->update();
+    if(found_ik)
     {
       succeeded_num += 1;
       pRStateIK->copyJointGroupPositions("psm_one", positionByIK);
@@ -474,6 +480,7 @@ TEST(ArmIKPlugin, TestKDLKinematics)
     }
   }
   ROS_INFO("Success Rate: %f", (double) succeeded_num / test_num);
+  ROS_INFO("Succeeded Times: %f", (double) succeeded_num);
   bool success_count = (succeeded_num >= 0.9999 * test_num) ? true : false;
   EXPECT_TRUE(success_count);
   ROS_INFO("Elapsed time: %f", (ros::WallTime::now() - start_time).toSec());
@@ -551,7 +558,7 @@ TEST(ArmIKPlugin, DISABLED_TestFK)
   ROS_INFO("Elapsed time: %f", (ros::WallTime::now() - start_time).toSec());
 }
 
-TEST(ArmIKPlugin, TestCompareUncalibratedFKWithNoDH)
+TEST(ArmIKPlugin, DISABLED_TestCompareUncalibratedFKWithNoDH)
 {
   robot_model_loader::RobotModelLoader robotModelLoader("robot_description");
   const robot_model::RobotModelConstPtr pKModelRobotDes = robotModelLoader.getModel();
@@ -593,7 +600,7 @@ TEST(ArmIKPlugin, TestCompareUncalibratedFKWithNoDH)
   EXPECT_TRUE(success_count);
 }
 
-TEST(ArmIKPlugin, TestCompareUncalibratedFKGenDH)
+TEST(ArmIKPlugin, DISABLED_TestCompareUncalibratedFKGenDH)
 {
   robot_model_loader::RobotModelLoader robotModelLoader("robot_description");
   const robot_model::RobotModelConstPtr pKModelRobotDes = robotModelLoader.getModel();
@@ -637,7 +644,7 @@ TEST(ArmIKPlugin, TestCompareUncalibratedFKGenDH)
   EXPECT_TRUE(success_count);
 }
 
-TEST(ArmIKPlugin, TestCompareUncalibratedFKSimDH)
+TEST(ArmIKPlugin, DISABLED_TestCompareUncalibratedFKSimDH)
 {
   robot_model_loader::RobotModelLoader robotModelLoader("robot_description");
   const robot_model::RobotModelConstPtr pKModelRobotDes = robotModelLoader.getModel();
@@ -681,7 +688,7 @@ TEST(ArmIKPlugin, TestCompareUncalibratedFKSimDH)
   EXPECT_TRUE(success_count);
 }
 
-TEST(ArmIKPlugin, TestCompareUncalibratedFKRealDH)
+TEST(ArmIKPlugin, DISABLED_TestCompareUncalibratedFKRealDH)
 {
   robot_model_loader::RobotModelLoader robotModelLoader("robot_description");
   const robot_model::RobotModelConstPtr pKModelRobotDes = robotModelLoader.getModel();

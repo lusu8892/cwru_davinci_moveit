@@ -390,6 +390,8 @@ const std::string& planning_group
   }
 }
 
+std::mutex HybridStateValidityChecker::planning_scene_mutex_;
+
 bool HybridStateValidityChecker::isRobotStateValid
 (
 const planning_scene::PlanningScenePtr& planning_scene,
@@ -411,5 +413,8 @@ const double* ik_solution
     return false;
   }
 
-  return !planning_scene->isStateColliding(*state);
+  std::unique_lock<std::mutex> guard(planning_scene_mutex_);
+  bool noCollision = !planning_scene->isStateColliding(*state);
+  guard.unlock();
+  return noCollision;
 }
