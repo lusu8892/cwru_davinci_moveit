@@ -41,7 +41,8 @@ using namespace dual_arm_manipulation_planner_interface;
 using namespace hybrid_planner_test;
 namespace ob = ompl::base;
 
-TEST(TestHybridRRT, HybridMotionValidator)
+TEST(TestHybridRRT, DISABLED_HybridMotionValidator)
+// TEST(TestHybridRRT, HybridMotionValidator)
 {
   ros::NodeHandle node_handle_priv("~");
   std::string objectName = "needle_r";
@@ -52,7 +53,6 @@ TEST(TestHybridRRT, HybridMotionValidator)
   auto si(std::make_shared<ob::SpaceInformation>(se3SS));
 
   HybridMotionValidatorTester tester(si, robotModelLoader.getModel(), objectName);
-
 
   int test_num = 0;
   node_handle_priv.getParam("test_num", test_num);
@@ -71,9 +71,9 @@ TEST(TestHybridRRT, HybridMotionValidator)
       rstate_home_position[i] = pRStateHome->getVariablePosition(pRStateHome->getVariableNames()[i]);
     }
 
-    tester.publishRobotState(*pRStateHome);
+    // tester.publishRobotState(*pRStateHome);
 
-    const robot_state::RobotStatePtr& pRdmRState = tester.sampleRobotState();
+    const robot_state::RobotStatePtr pRdmRState = tester.sampleRobotState();
     EXPECT_EQ(variable_count, pRdmRState->getVariableNames().size());
     std::vector<double> rstate_random_position(variable_count);
     for (std::size_t i = 0; i < variable_count; ++i)
@@ -86,7 +86,7 @@ TEST(TestHybridRRT, HybridMotionValidator)
       EXPECT_EQ(pRdmRState->getVariableNames()[i], pRStateHome->getVariableNames()[i]);
     }
 
-    tester.publishRobotState(*pRdmRState);
+    // tester.publishRobotState(*pRdmRState);
 
     bool testResult = tester.testComputeCartesianPath(*pRStateHome, *pRdmRState);
     EXPECT_TRUE(testResult);
@@ -105,10 +105,83 @@ TEST(TestHybridRRT, HybridMotionValidator)
   }
 
   ROS_INFO("Success Rate: %f", (double) tester.getSucceededNum() / test_num);
+  ROS_INFO("Same Rate: %f", (double) tester.getPercentageNum() / test_num);
   bool success_count = (tester.getSucceededNum() >= 0.9999 * test_num) ? true : false;
+  bool same_count = (tester.getPercentageNum() >= 0.9999 * test_num) ? true : false;
   EXPECT_TRUE(success_count);
+  EXPECT_TRUE(same_count);
 }
 
+TEST(TestHybridRRT, DISABLED_TestComputeCartesianPath)
+// TEST(TestHybridRRT, TestComputeCartesianPath)
+{
+  ros::NodeHandle node_handle_priv("~");
+  std::string objectName = "needle_r";
+  robot_model_loader::RobotModelLoader robotModelLoader("robot_description");
+
+  // construct an instance of space information from this state space
+  auto se3SS(std::make_shared<ob::SE3StateSpace>());
+  auto si(std::make_shared<ob::SpaceInformation>(se3SS));
+
+  HybridMotionValidatorTester tester(si, robotModelLoader.getModel(), objectName);
+
+  int test_num = 0;
+  node_handle_priv.getParam("test_num", test_num);
+
+  for (std::size_t i = 0; i < test_num; ++i)
+  {
+    const robot_state::RobotStatePtr pRStateHome(new robot_state::RobotState(tester.getRobotModel()));
+    pRStateHome->setToDefaultValues();
+    pRStateHome->update();
+
+    const robot_state::RobotStatePtr pRdmRState = tester.sampleRobotState();
+
+    bool testResult = tester.testMultiTreadComputeCartesianPath(*pRStateHome, *pRdmRState);
+    EXPECT_TRUE(testResult);
+  }
+
+  ROS_INFO("Success Rate: %f", (double) tester.getSucceededNum() / test_num);
+  ROS_INFO("Same Rate: %f", (double) tester.getPercentageNum() / test_num);
+  bool success_count = (tester.getSucceededNum() >= 0.9999 * test_num) ? true : false;
+  bool same_count = (tester.getPercentageNum() >= 0.9999 * test_num) ? true : false;
+  EXPECT_TRUE(success_count);
+  EXPECT_TRUE(same_count);
+}
+
+TEST(TestHybridRRT, TestComputeCartesianPathWithCollCheck)
+{
+  ros::NodeHandle node_handle_priv("~");
+  std::string objectName = "needle_r";
+  robot_model_loader::RobotModelLoader robotModelLoader("robot_description");
+
+  // construct an instance of space information from this state space
+  auto se3SS(std::make_shared<ob::SE3StateSpace>());
+  auto si(std::make_shared<ob::SpaceInformation>(se3SS));
+
+  HybridMotionValidatorTester tester(si, robotModelLoader.getModel(), objectName);
+
+  int test_num = 0;
+  node_handle_priv.getParam("test_num", test_num);
+
+  for (std::size_t i = 0; i < test_num; ++i)
+  {
+    const robot_state::RobotStatePtr pRStateHome(new robot_state::RobotState(tester.getRobotModel()));
+    pRStateHome->setToDefaultValues();
+    pRStateHome->update();
+
+    const robot_state::RobotStatePtr pRdmRState = tester.sampleRobotState();
+
+    bool testResult = tester.testMultiTreadComputeCartesianPathWithCollCheck(*pRStateHome, *pRdmRState);
+    EXPECT_TRUE(testResult);
+  }
+
+  ROS_INFO("Success Rate: %f", (double) tester.getSucceededNum() / test_num);
+  ROS_INFO("Same Rate: %f", (double) tester.getPercentageNum() / test_num);
+  bool success_count = (tester.getSucceededNum() >= 0.9999 * test_num) ? true : false;
+  bool same_count = (tester.getPercentageNum() >= 0.9999 * test_num) ? true : false;
+  EXPECT_TRUE(success_count);
+  EXPECT_TRUE(same_count);
+}
 int main(int argc, char** argv)
 {
   testing::InitGoogleTest(&argc, argv);

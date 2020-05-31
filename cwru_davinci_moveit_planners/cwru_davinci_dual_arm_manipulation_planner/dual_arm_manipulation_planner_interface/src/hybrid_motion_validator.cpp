@@ -41,7 +41,6 @@
 #include <moveit/kinematic_constraints/utils.h>
 #include <moveit/robot_state/conversions.h>
 #include <moveit/collision_detection/collision_tools.h>
-#include <moveit/robot_state/robot_state.h>
 
 using namespace dual_arm_manipulation_planner_interface;
 
@@ -79,12 +78,12 @@ const ompl::base::State* s2
       return false;
     }
 
-    const robot_state::RobotStatePtr start_state(new robot_state::RobotState(kmodel_));
+    const robot_state::RobotStatePtr start_state = std::make_shared<robot_state::RobotState>(kmodel_);
     if (!start_state || !hybridStateToRobotState(pHyState1, start_state))
     {
       return result;
     }
-    const robot_state::RobotStatePtr goal_state(new robot_state::RobotState(kmodel_));
+    const robot_state::RobotStatePtr goal_state = std::make_shared<robot_state::RobotState>(kmodel_);
     if (!goal_state || !hybridStateToRobotState(pHyState2, goal_state))
     {
       return result;
@@ -140,7 +139,7 @@ const std::string& gs_active_group
   bool able_to_handoff = false;
 
   // an intermediate state when needle is supporting by two grippers
-  const robot_state::RobotStatePtr handoff_state(new robot_state::RobotState(start_state));
+  const robot_state::RobotStatePtr handoff_state = std::make_shared<robot_state::RobotState>(start_state);
 
   std::vector<double> gs_jt_position;
   goal_state.copyJointGroupPositions(gs_active_group, gs_jt_position);
@@ -194,7 +193,7 @@ const std::string& gs_active_group
 ) const
 {
   // planning in a back order fashion
-  robot_state::RobotStatePtr pre_grasp_state(new robot_state::RobotState(start_state));
+  robot_state::RobotStatePtr pre_grasp_state = std::make_shared<robot_state::RobotState>(start_state);
   if (!planPreGraspStateToGraspedState(pre_grasp_state, handoff_state, gs_active_group))
     return false;
   if (!planSafeStateToPreGraspState(start_state, *pre_grasp_state, gs_active_group))
@@ -209,8 +208,7 @@ const robot_state::RobotState& goal_state,
 const std::string& ss_active_group
 ) const
 {
-  robot_state::RobotStatePtr ungrasped_state(new robot_state::RobotState(goal_state));
-
+  robot_state::RobotStatePtr ungrasped_state = std::make_shared<robot_state::RobotState>(goal_state);
   if (!planGraspStateToUngraspedState(handoff_state, ungrasped_state, ss_active_group))
     return false;
   if (!planUngraspedStateToSafeState(*ungrasped_state, goal_state, ss_active_group))
@@ -234,7 +232,7 @@ const std::string& planning_group
   Eigen::Vector3d unit_approach_dir(0.0, 0.0, 1.0);  // grasp approach along the +z-axis of tip frame
 
   robot_state::GroupStateValidityCallbackFn stateValidityCallbackFn = boost::bind(&isRobotStateValid,
-                                                                                  planning_scene_,
+                                                                                  boost::cref(*planning_scene_),
                                                                                   boost::cref(planning_group), _1, _2, _3);
   bool found_ik = false;
   double distance = 0.01;
@@ -282,7 +280,8 @@ const std::string& planning_group
     return clear_path;
   }
 
-  pre_grasp_state.reset(new robot_state::RobotState(*traj[0]));
+  pre_grasp_state = std::move(traj[0]);  // move the ownership, do not copy
+  // pre_grasp_state.reset(new robot_state::RobotState(*traj[0]));
   for (std::size_t i = 0; i < eef_joint_position.size(); ++i)
   {
     eef_joint_position[i] = 0.0;
@@ -301,38 +300,13 @@ const robot_state::RobotState& pre_grasp_state,
 const std::string& planning_group
 ) const
 {
-  robot_state::RobotStatePtr cp_start_state_1(new robot_state::RobotState(pre_grasp_state));
-  robot_state::RobotStatePtr cp_start_state_2(new robot_state::RobotState(pre_grasp_state));
   const robot_state::JointModelGroup* arm_joint_group = pre_grasp_state.getJointModelGroup(planning_group);
   const moveit::core::LinkModel* tip_link = arm_joint_group->getOnlyOneEndEffectorTip();
   const Eigen::Affine3d tool_tip_home = start_state.getGlobalLinkTransform(tip_link);
   std::vector<robot_state::RobotStatePtr> traj;
 
-  robot_state::GroupStateValidityCallbackFn stateValidityCallbackFn = boost::bind(&isRobotStateValid,
-                                                                                  planning_scene_,
-                                                                                  boost::cref(planning_group), _1, _2, _3);
-  // std::vector<robot_state::RobotStatePtr> traj_1;
-  // double found_cartesian_path_1 = cp_start_state_1->computeCartesianPath(cp_start_state_1->getJointModelGroup(planning_group),
-  //                                                                        traj_1,
-  //                                                                        cp_start_state_1->getJointModelGroup(planning_group)->getOnlyOneEndEffectorTip(),
-  //                                                                        tool_tip_home,
-  //                                                                        true,
-  //                                                                        0.001,
-  //                                                                        0.0,
-  //                                                                        stateValidityCallbackFn);
-
-  // std::vector<robot_state::RobotStatePtr> traj_2;
-  // double found_cartesian_path_2 = cp_start_state_2->computeCartesianPath(cp_start_state_2->getJointModelGroup(planning_group),
-  //                                                                        traj_2,
-  //                                                                        cp_start_state_2->getJointModelGroup(planning_group)->getOnlyOneEndEffectorTip(),
-  //                                                                        tool_tip_home,
-  //                                                                        true,
-  //                                                                        0.001,
-  //                                                                        0.0,
-  //                                                                        stateValidityCallbackFn);
-
   // compute from pre-grasp state to safe state, back order fashion give higher succeeded rate
-  double found_cartesian_path = computeCartesianPath(robot_state::RobotStatePtr(new robot_state::RobotState(pre_grasp_state)),
+  double found_cartesian_path = computeCartesianPath(std::make_shared<robot_state::RobotState>(pre_grasp_state),
                                                      planning_group,
                                                      traj,
                                                      tip_link,
@@ -340,16 +314,6 @@ const std::string& planning_group
                                                      true,
                                                      0.001,
                                                      0.0);
-
-  // std::vector<robot_state::RobotStatePtr> traj_3;
-  // double found_cartesian_path_3 = computeCartesianPath(robot_state::RobotStatePtr(new robot_state::RobotState(pre_grasp_state)),
-  //                                                      planning_group,
-  //                                                      traj_3,
-  //                                                      tip_link,
-  //                                                      tool_tip_home,
-  //                                                      true,
-  //                                                      0.001,
-  //                                                      0.0);
 
   bool clear_path = false;
   if (!((found_cartesian_path - 0.9) >= std::numeric_limits<double>::epsilon()))
@@ -432,7 +396,8 @@ const std::string& planning_group
     return clear_path;
   }
 
-  ungrasped_state.reset(new robot_state::RobotState(*traj.back()));
+  ungrasped_state = std::move(traj.back());
+  // ungrasped_state.reset(new robot_state::RobotState(*traj.back()));
   ungrasped_state->setToDefaultValues(ungrasped_state->getJointModelGroup(eef_group_name), eef_group_name + "_home");
   setMimicJointPositions(ungrasped_state, planning_group);
   ungrasped_state->update();
@@ -453,7 +418,7 @@ const std::string& planning_group
 
   std::vector<robot_state::RobotStatePtr> traj;
 
-  double found_cartesian_path = computeCartesianPath(robot_state::RobotStatePtr(new robot_state::RobotState(ungrasped_state)),
+  double found_cartesian_path = computeCartesianPath(std::make_shared<robot_state::RobotState>(ungrasped_state),
                                                      planning_group,
                                                      traj,
                                                      tip_link,
@@ -485,7 +450,7 @@ const std::string& planning_group
 
   std::vector<robot_state::RobotStatePtr> traj;
 
-  double found_cartesian_path = computeCartesianPath(robot_state::RobotStatePtr(new robot_state::RobotState(start_state)),
+  double found_cartesian_path = computeCartesianPath(std::make_shared<robot_state::RobotState>(start_state),
                                                      planning_group,
                                                      traj,
                                                      tip_link,
@@ -618,7 +583,7 @@ double jump_threshold_factor
   // if (jump_threshold.factor > 0 && steps < MIN_STEPS_FOR_JUMP_THRESH)
   //   steps = MIN_STEPS_FOR_JUMP_THRESH;
 
-  robot_state::RobotStatePtr initialRState(new robot_state::RobotState(*rstate));
+  const robot_state::RobotState initialRState = *rstate;
 
   const unsigned int min_per_thread = 4;
   const unsigned int length = steps;
@@ -634,7 +599,7 @@ double jump_threshold_factor
   std::vector<std::vector<robot_state::RobotStatePtr>> trajVec(num_threads);
 
   robot_state::GroupStateValidityCallbackFn stateValidityCallbackFn = boost::bind(&isRobotStateValid,
-                                                                                  planning_scene_,
+                                                                                  boost::cref(*planning_scene_),
                                                                                   boost::cref(planning_group), _1, _2, _3);
   int block_start = 1;
   for (std::size_t i = 0; i < num_threads - 1; ++i)
@@ -652,7 +617,7 @@ double jump_threshold_factor
                                                                                    std::cref(rotated_target),
                                                                                    std::cref(start_pose),
                                                                                    std::cref(link),
-                                                                                   std::cref(rstate),
+                                                                                   std::cref(*rstate),
                                                                                    std::cref(stateValidityCallbackFn),
                                                                                    std::ref(trajVec[i]),
                                                                                    std::ref(block_valid_percentage[i]));
@@ -662,25 +627,28 @@ double jump_threshold_factor
 
   checkIKCollisionMultiThreads(block_start, steps+1, steps, planning_group,
                                start_quaternion, target_quaternion, rotated_target,
-                               start_pose, link, rstate, stateValidityCallbackFn,
+                               start_pose, link, *rstate, stateValidityCallbackFn,
                                trajVec[num_threads-1], block_valid_percentage[num_threads-1]);
   std::for_each(threads.begin(), threads.end(), std::mem_fn(&std::thread::join));
 
   traj.clear();
-  traj.push_back(initialRState);
+  traj.push_back(std::make_shared<robot_state::RobotState>(initialRState));
   double last_valid_percentage = 0.0;
 
   for (std::size_t i = 0; i < num_threads; ++i)
   {
     last_valid_percentage += block_valid_percentage[i];
 
-    if ((trajVec[i].empty() || trajVec[i].size() != block_size) && last_valid_percentage < 0.9)
+    if (trajVec[i].size() != block_size && trajVec[i].size() != (steps - block_start))
+    {
+      if (!trajVec[i].empty())
+        std::move(std::begin(trajVec[i]), std::end(trajVec[i]), std::back_inserter(traj));
+        // traj.insert(traj.end(), trajVec[i].begin(), trajVec[i].end());
       return last_valid_percentage;
+    }
 
-    if (trajVec[i].empty() && last_valid_percentage >= 0.9)
-      return last_valid_percentage;
-
-    traj.insert(traj.end(), trajVec[i].begin(), trajVec[i].end());
+    std::move(std::begin(trajVec[i]), std::end(trajVec[i]), std::back_inserter(traj));
+    // traj.insert(traj.end(), trajVec[i].begin(), trajVec[i].end());
   }
 
   return last_valid_percentage;
@@ -697,7 +665,7 @@ const Eigen::Quaterniond& target_quaternion,
 const Eigen::Affine3d& rotated_target,
 const Eigen::Affine3d& start_pose,
 const robot_state::LinkModel* link,
-const robot_state::RobotStatePtr& initialRState,
+const robot_state::RobotState& initialRState,
 const robot_state::GroupStateValidityCallbackFn& validCallback,
 std::vector<robot_state::RobotStatePtr>& traj,
 double& block_valid_percentage
@@ -705,7 +673,7 @@ double& block_valid_percentage
 {
   // std::unique_lock<std::mutex> lock_guard(planning_scene_mutex_, std::defer_lock);
   const double current_percentage = (double)first / (double)steps;
-  const robot_state::RobotStatePtr rstate(new robot_state::RobotState(*initialRState));
+  robot_state::RobotState rstate = initialRState;
 
   for (std::size_t i = first; i < last; ++i)
   {
@@ -716,10 +684,10 @@ double& block_valid_percentage
 
     // Explicitly use a single IK attempt only: We want a smooth trajectory.
     // Random seeding (of additional attempts) would probably create IK jumps.
-    if (rstate->setFromIK(rstate->getJointModelGroup(planning_group), pose, link->getName(), 2, 0.0, validCallback))
+    if (rstate.setFromIK(rstate.getJointModelGroup(planning_group), pose, link->getName(), 2, 0.0, validCallback))
     {
       // lock_guard.lock();
-      traj.push_back(robot_state::RobotStatePtr(new robot_state::RobotState(*rstate)));
+      traj.push_back(std::make_shared<robot_state::RobotState>(rstate));
       // lock_guard.unlock();
     }
     else

@@ -394,7 +394,7 @@ std::mutex HybridStateValidityChecker::planning_scene_mutex_;
 
 bool HybridStateValidityChecker::isRobotStateValid
 (
-const planning_scene::PlanningScenePtr& planning_scene,
+const planning_scene::PlanningScene& planning_scene,
 const std::string& planning_group,
 robot_state::RobotState* state,
 const robot_state::JointModelGroup* group,
@@ -408,13 +408,13 @@ const double* ik_solution
     state->setJointGroupPositions(planning_group + "_base_mimics", joint_val);
   state->update();
 
-  if (!planning_scene)
+  if (&planning_scene == nullptr)
   {
     return false;
   }
 
   std::unique_lock<std::mutex> guard(planning_scene_mutex_);
-  bool noCollision = !planning_scene->isStateColliding(*state);
+  bool noCollision = !planning_scene.isStateColliding(*state);
   guard.unlock();
   return noCollision;
 }

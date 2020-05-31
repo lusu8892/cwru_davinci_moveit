@@ -168,7 +168,7 @@ protected:
   const Eigen::Affine3d& rotated_target,
   const Eigen::Affine3d& start_pose,
   const robot_state::LinkModel* link,
-  const robot_state::RobotStatePtr& initialRState,
+  const robot_state::RobotState& initialRState,
   const robot_state::GroupStateValidityCallbackFn& validCallback,
   std::vector<robot_state::RobotStatePtr>& traj,
   double& block_valid_percentage

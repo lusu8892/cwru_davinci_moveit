@@ -370,7 +370,6 @@ TEST(ArmIKPlugin, DISABLED_TestMimicJoints)
 }
 
 TEST(ArmIKPlugin, TestInverseKinematics)
-// TEST(ArmIKPlugin, TestKDLKinematics)
 {
   robot_model_loader::RobotModelLoader robotModelLoader("robot_description");
   const robot_model::RobotModelConstPtr pKModel = robotModelLoader.getModel();
@@ -402,10 +401,14 @@ TEST(ArmIKPlugin, TestInverseKinematics)
 
   // ik robot state
   const robot_state::RobotStatePtr pRStateIK(new robot_state::RobotState(pKModel));
+  const robot_state::RobotStatePtr pRStateIK2(new robot_state::RobotState(pKModel));
   pRStateIK->setToDefaultValues();
+  pRStateIK2->setToDefaultValues();
+
   // *pRStateIK = *pRStateFK;
   const robot_state::JointModelGroup* arm_joint_group_ik = pRStateIK->getJointModelGroup("psm_one");
   std::vector<double> positionByIK;
+  std::vector<double> positionByIK2;
   int active_joint_num = 6;
   int all_joints_num = 28;
   ros::WallTime start_time = ros::WallTime::now();
@@ -438,17 +441,28 @@ TEST(ArmIKPlugin, TestInverseKinematics)
                                          1,
                                          0.0);
     pRStateIK->update();
+
+    pRStateIK2->setToRandomPositions(pRStateIK2->getJointModelGroup("psm_one"));
+    pRStateIK2->update();
+    bool found_ik2 = pRStateIK2->setFromIK(pRStateIK2->getJointModelGroup("psm_one"), 
+                                           goal_tool_tip_pose,
+                                           pRStateIK2->getJointModelGroup("psm_one")->getOnlyOneEndEffectorTip()->getName(),
+                                           1,
+                                           0.0);
     // const robot_state::RobotStatePtr pRStateTest(new robot_state::RobotState(pKModel));
     // pRStateTest->setToDefaultValues();
     // pRStateTest->update();
     // bool found_again = pRStateTest->setFromIK(arm_joint_group_ik, goal_tool_tip_pose, 1, time_out);
     // pRStateIK->update();
-    if(found_ik)
+    if(found_ik && found_ik2)
     {
       succeeded_num += 1;
       pRStateIK->copyJointGroupPositions("psm_one", positionByIK);
       EXPECT_EQ(randomPositionByFK.size(), positionByIK.size());
       EXPECT_EQ(active_joint_num, positionByIK.size());
+
+      pRStateIK2->copyJointGroupPositions("psm_one", positionByIK2);
+      EXPECT_EQ(positionByIK.size(), positionByIK2.size());
 //      EXPECT_EQ(all_joints_num, pRStateIK->getVariableCount());
 
 //      const double * ik_array = pRStateIK->getVariablePositions();
@@ -476,6 +490,7 @@ TEST(ArmIKPlugin, TestInverseKinematics)
       for(size_t j = 0; j < randomPositionByFK.size(); j++)
       {
         EXPECT_NEAR(randomPositionByFK[j], positionByIK[j], 1e-3);
+        EXPECT_NEAR(randomPositionByFK[j], positionByIK2[j], 1e-3);
       }
     }
   }
