@@ -639,17 +639,17 @@ double jump_threshold_factor
   {
     last_valid_percentage += block_valid_percentage[i];
 
-    if (trajVec[i].size() != block_size && trajVec[i].size() != (steps - block_start))
+    if (trajVec[i].size() != block_size && trajVec[i].size() != (steps - block_start + 1))
     {
       if (!trajVec[i].empty())
-        std::move(std::begin(trajVec[i]), std::end(trajVec[i]), std::back_inserter(traj));
-        // traj.insert(traj.end(), trajVec[i].begin(), trajVec[i].end());
+        traj.push_back(std::move(trajVec[i].back()));
+      else if ( i > 1)
+        traj.push_back(std::move(trajVec[i - 1].back()));
+
       return last_valid_percentage;
     }
-
-    std::move(std::begin(trajVec[i]), std::end(trajVec[i]), std::back_inserter(traj));
-    // traj.insert(traj.end(), trajVec[i].begin(), trajVec[i].end());
   }
+  traj.push_back(std::move(trajVec[num_threads - 1].back()));
 
   return last_valid_percentage;
 }
@@ -684,7 +684,7 @@ double& block_valid_percentage
 
     // Explicitly use a single IK attempt only: We want a smooth trajectory.
     // Random seeding (of additional attempts) would probably create IK jumps.
-    if (rstate.setFromIK(rstate.getJointModelGroup(planning_group), pose, link->getName(), 2, 0.0, validCallback))
+    if (rstate.setFromIK(rstate.getJointModelGroup(planning_group), pose, link->getName(), 1, 0.0, validCallback))
     {
       // lock_guard.lock();
       traj.push_back(std::make_shared<robot_state::RobotState>(rstate));

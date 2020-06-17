@@ -417,4 +417,5 @@ const double* ik_solution
   bool noCollision = !planning_scene.isStateColliding(*state);
   guard.unlock();
   return noCollision;
+  // return true;
 }
