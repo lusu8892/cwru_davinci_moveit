@@ -89,7 +89,7 @@ bool HybridStateValidityChecker::isValid(const ompl::base::State* state) const
   else
   {
     // convert ompl state to moveit robot state
-    const robot_state::RobotStatePtr kstate(new robot_state::RobotState(kmodel_));
+    const robot_state::RobotStatePtr kstate = std::make_shared<robot_state::RobotState>(kmodel_);
 
     if (!hybridStateToRobotState(pHybridState, kstate))
     {
@@ -382,7 +382,7 @@ const robot_state::RobotState& rstate
 
 bool HybridStateValidityChecker::isRobotStateValid
 (
-const planning_scene::PlanningScenePtr& planning_scene,
+const planning_scene::PlanningScene& planning_scene,
 const std::string& planning_group,
 robot_state::RobotState* state,
 const robot_state::JointModelGroup* group,
@@ -396,10 +396,10 @@ const double* ik_solution
     state->setJointGroupPositions(planning_group + "_base_mimics", joint_val);
   state->update();
 
-  if (!planning_scene)
+  if (&planning_scene == nullptr)
   {
     return false;
   }
 
-  return !planning_scene->isStateColliding(*state);
+  return !planning_scene.isStateColliding(*state);
 }
