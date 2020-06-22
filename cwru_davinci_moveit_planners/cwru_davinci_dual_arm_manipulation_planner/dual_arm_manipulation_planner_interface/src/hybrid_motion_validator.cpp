@@ -303,39 +303,6 @@ const std::string& planning_group
   pre_grasp_state->update();
   clear_path = true;
   return clear_path;
-
-  // const int num_threads = traj.size();
-  // std::vector<std::thread> threads;
-  // std::vector<uint8_t> result(num_threads, false);
-
-  // for (std::size_t i = 0; i < num_threads; ++i)
-  // {
-  //   setMimicJointPositions(traj[i], planning_group);
-  //   traj[i]->update();
-  //   threads.push_back(std::thread(&HybridMotionValidator::noCollisionThread, this, std::ref(result[i]), std::cref(*traj[i])));
-  // }
-
-  // for (std::thread &t : threads)
-  // {
-  //   if (t.joinable())
-  //   {
-  //     t.join();
-  //   }
-  // }
-
-  // for (uint8_t &r : result)
-  // {
-  //   if (r == 0)
-  //   {
-  //     return clear_path;
-  //   }
-  // }
-
-  // pre_grasp_state.reset(new robot_state::RobotState(*traj[0]));
-  // pre_grasp_state->update();
-
-  // clear_path = true;
-  // return clear_path;
 }
 
 
@@ -378,36 +345,6 @@ const std::string& planning_group
   }
   clear_path = true;
   return clear_path;
-
-  // const int num_threads = traj.size();
-  // std::vector<std::thread> threads;
-  // std::vector<uint8_t> result(num_threads, false);
-
-  // for (std::size_t i = 0; i < num_threads; ++i)
-  // {
-  //   setMimicJointPositions(traj[i], planning_group);
-  //   traj[i]->update();
-  //   threads.push_back(std::thread(&HybridMotionValidator::noCollisionThread, this, std::ref(result[i]), std::cref(*traj[i])));
-  // }
-
-  // for (std::thread &t : threads)
-  // {
-  //   if (t.joinable())
-  //   {
-  //     t.join();
-  //   }
-  // }
-
-  // for (uint8_t &r : result)
-  // {
-  //   if (r == 0)
-  //   {
-  //     return clear_path;
-  //   }
-  // }
-
-  // clear_path = true;
-  // return clear_path;
 }
 
 bool HybridMotionValidator::planGraspStateToUngraspedState
@@ -488,36 +425,6 @@ const std::string& planning_group
   ungrasped_state->update();
   clear_path = true;
   return clear_path;
-
-  // const int num_threads = traj.size();
-  // std::vector<std::thread> threads;
-  // std::vector<uint8_t> result(num_threads, false);
-
-  // for (std::size_t i = 0; i < num_threads; ++i)
-  // {
-  //   setMimicJointPositions(traj[i], planning_group);
-  //   traj[i]->update();
-  //   threads.push_back(std::thread(&HybridMotionValidator::noCollisionThread, this, std::ref(result[i]), std::cref(*traj[i])));
-  // }
-
-  // for (std::thread &t : threads)
-  // {
-  //   if (t.joinable())
-  //   {
-  //     t.join();
-  //   }
-  // }
-
-  // for (uint8_t &r : result)
-  // {
-  //   if (r == 0)
-  //   {
-  //     return clear_path;
-  //   }
-  // }
-
-  // clear_path = true;
-  // return clear_path;
 }
 
 bool HybridMotionValidator::planUngraspedStateToSafeState
@@ -559,36 +466,6 @@ const std::string& planning_group
   }
   clear_path = true;
   return clear_path;
-
-  // const int num_threads = traj.size();
-  // std::vector<std::thread> threads;
-  // std::vector<uint8_t> result(num_threads, false);
-
-  // for (std::size_t i = 0; i < num_threads; ++i)
-  // {
-  //   setMimicJointPositions(traj[i], planning_group);
-  //   traj[i]->update();
-  //   threads.push_back(std::thread(&HybridMotionValidator::noCollisionThread, this, std::ref(result[i]), std::cref(*traj[i])));
-  // }
-
-  // for (std::thread &t : threads)
-  // {
-  //   if (t.joinable())
-  //   {
-  //     t.join();
-  //   }
-  // }
-
-  // for (uint8_t &r : result)
-  // {
-  //   if (r == 0)
-  //   {
-  //     return clear_path;
-  //   }
-  // }
-
-  // clear_path = true;
-  // return clear_path;
 }
 
 bool HybridMotionValidator::planObjectTransit
@@ -630,34 +507,4 @@ const std::string& planning_group
   }
   clear_path = true;
   return clear_path;
-
-  // const int num_threads = traj.size();
-  // std::vector<std::thread> threads;
-  // std::vector<uint8_t> result(num_threads, false);
-
-  // for (std::size_t i = 0; i < num_threads; ++i)
-  // {
-  //   setMimicJointPositions(traj[i], planning_group);
-  //   traj[i]->update();
-  //   threads.push_back(std::thread(&HybridMotionValidator::noCollisionThread, this, std::ref(result[i]), std::cref(*traj[i])));
-  // }
-
-  // for (std::thread &t : threads)
-  // {
-  //   if (t.joinable())
-  //   {
-  //     t.join();
-  //   }
-  // }
-
-  // for (uint8_t &r : result)
-  // {
-  //   if (r == 0)
-  //   {
-  //     return clear_path;
-  //   }
-  // }
-
-  // clear_path = true;
-  // return clear_path;
 }
