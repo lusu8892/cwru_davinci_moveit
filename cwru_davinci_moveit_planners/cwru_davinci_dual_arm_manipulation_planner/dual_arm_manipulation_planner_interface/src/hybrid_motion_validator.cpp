@@ -231,9 +231,11 @@ const std::string& planning_group
   Eigen::Affine3d pregrasp_tool_tip_pose = grasped_tool_tip_pose;
   Eigen::Vector3d unit_approach_dir(0.0, 0.0, 1.0);  // grasp approach along the +z-axis of tip frame
 
-  robot_state::GroupStateValidityCallbackFn stateValidityCallbackFn = boost::bind(&isRobotStateValid,
+  robot_state::GroupStateValidityCallbackFn stateValidityCallbackFn = boost::bind(&HybridMotionValidator::isRobotStateValid,
+                                                                                  this,
                                                                                   boost::cref(*planning_scene_),
-                                                                                  boost::cref(planning_group), _1, _2, _3);
+                                                                                  boost::cref(planning_group),
+                                                                                  true, false, _1, _2, _3);
   bool found_ik = false;
   double distance = 0.01;
   while (distance <= 0.015)
@@ -309,9 +311,11 @@ const std::string& planning_group
   const Eigen::Affine3d tool_tip_home = start_state.getGlobalLinkTransform(tip_link);
 
   std::vector<robot_state::RobotStatePtr> traj;
-  robot_state::GroupStateValidityCallbackFn stateValidityCallbackFn = boost::bind(&isRobotStateValid,
+  robot_state::GroupStateValidityCallbackFn stateValidityCallbackFn = boost::bind(&HybridStateValidityChecker::isRobotStateValid,
+                                                                                  this,
                                                                                   boost::cref(*planning_scene_),
-                                                                                  boost::cref(planning_group), _1, _2, _3);
+                                                                                  boost::cref(planning_group),
+                                                                                  true, false, _1, _2, _3);
 
   double found_cartesian_path = cp_start_state->computeCartesianPath(cp_start_state->getJointModelGroup(planning_group),
                                                                      traj,
@@ -323,7 +327,7 @@ const std::string& planning_group
                                                                      stateValidityCallbackFn);
 
   bool clear_path = false;
-  if (!((found_cartesian_path - 0.9) >= std::numeric_limits<double>::epsilon()))
+  if (!((found_cartesian_path - 0.8) >= std::numeric_limits<double>::epsilon()))
   {
     return clear_path;
   }
@@ -366,7 +370,7 @@ const std::string& planning_group
   setMimicJointPositions(ungrasped_state, planning_group);  // this line cannot be removed, as copyJointGroupPosition does not copy mimic joints's value
   ungrasped_state->update();
 
-  if (!noCollision(*ungrasped_state))
+  if (!noCollision(*ungrasped_state, planning_group, false))
     return false;
 
   std::vector<robot_state::RobotStatePtr> traj;
@@ -374,9 +378,11 @@ const std::string& planning_group
   moveit::core::MaxEEFStep max_step(translation_step_max, rotation_step_max);
   moveit::core::JumpThreshold jump_threshold;
 
-  robot_state::GroupStateValidityCallbackFn stateValidityCallbackFn = boost::bind(&isRobotStateValid,
+  robot_state::GroupStateValidityCallbackFn stateValidityCallbackFn = boost::bind(&HybridStateValidityChecker::isRobotStateValid,
+                                                                                  this,
                                                                                   boost::cref(*planning_scene_),
-                                                                                  boost::cref(planning_group), _1, _2, _3);
+                                                                                  boost::cref(planning_group),
+                                                                                  false, false, _1, _2, _3);
   double found_cartesian_path = ungrasped_state->computeCartesianPath(ungrasped_state->getJointModelGroup(planning_group),
                                                                       traj,
                                                                       tip_link,
@@ -388,13 +394,8 @@ const std::string& planning_group
 
   bool clear_path = false;
 
-  if (traj.size() == 1) // This happens when traj size is one and noCollision true
-  {
-    ungrasped_state->update();
-    return true;
-  }
-
-  if ((found_cartesian_path - 0.9) >= std::numeric_limits<double>::epsilon())
+  ungrasped_state = std::move(traj.back());
+  if ((found_cartesian_path - 0.4) >= std::numeric_limits<double>::epsilon())
     ungrasped_state->setToDefaultValues(ungrasped_state->getJointModelGroup(eef_group_name), eef_group_name + "_home");
 
   ungrasped_state->update();
@@ -415,9 +416,11 @@ const std::string& planning_group
   const Eigen::Affine3d tool_tip_pose = goal_state.getGlobalLinkTransform(tip_link);
 
   std::vector<robot_state::RobotStatePtr> traj;
-  robot_state::GroupStateValidityCallbackFn stateValidityCallbackFn = boost::bind(&isRobotStateValid,
+  robot_state::GroupStateValidityCallbackFn stateValidityCallbackFn = boost::bind(&HybridStateValidityChecker::isRobotStateValid,
+                                                                                  this,
                                                                                   boost::cref(*planning_scene_),
-                                                                                  boost::cref(planning_group), _1, _2, _3);
+                                                                                  boost::cref(planning_group),
+                                                                                  true, false, _1, _2, _3);
 
   double found_cartesian_path = cp_start_state->computeCartesianPath(cp_start_state->getJointModelGroup(planning_group),
                                                                      traj,
@@ -429,7 +432,7 @@ const std::string& planning_group
                                                                      stateValidityCallbackFn);
 
   bool clear_path = false;
-  if (!((found_cartesian_path - 0.9) >= std::numeric_limits<double>::epsilon()))
+  if (!((found_cartesian_path - 0.8) >= std::numeric_limits<double>::epsilon()))
   {
     return clear_path;
   }
@@ -451,9 +454,11 @@ const std::string& planning_group
   const Eigen::Affine3d tool_tip_pose = goal_state.getGlobalLinkTransform(tip_link);
 
   std::vector<robot_state::RobotStatePtr> traj;
-  robot_state::GroupStateValidityCallbackFn stateValidityCallbackFn = boost::bind(&isRobotStateValid,
+  robot_state::GroupStateValidityCallbackFn stateValidityCallbackFn = boost::bind(&HybridStateValidityChecker::isRobotStateValid,
+                                                                                  this,
                                                                                   boost::cref(*planning_scene_),
-                                                                                  boost::cref(planning_group), _1, _2, _3);
+                                                                                  boost::cref(planning_group),
+                                                                                  true, false, _1, _2, _3);
 
   double found_cartesian_path = cp_start_state->computeCartesianPath(cp_start_state->getJointModelGroup(planning_group),
                                                                      traj,

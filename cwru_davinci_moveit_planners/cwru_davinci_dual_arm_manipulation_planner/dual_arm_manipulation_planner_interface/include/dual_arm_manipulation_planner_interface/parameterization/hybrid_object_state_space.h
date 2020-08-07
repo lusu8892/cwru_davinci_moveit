@@ -272,6 +272,12 @@ public:
   StateType* state
   ) const;
 
+  void copyJointValues
+  (
+  const StateType* state,
+  std::vector<double>& joint_values
+  ) const;
+
   int getJointSpaceDimension() const;
 
   virtual bool isHybrid() const;
@@ -360,7 +366,7 @@ public:
   const StateType* state2
   ) const;
 
-  inline const std::vector<cwru_davinci_grasp::GraspInfo>& graspTransformations() const
+  const std::vector<cwru_davinci_grasp::GraspInfo>& graspTransformations() const
   {
     return m_PossibleGrasps;
   }

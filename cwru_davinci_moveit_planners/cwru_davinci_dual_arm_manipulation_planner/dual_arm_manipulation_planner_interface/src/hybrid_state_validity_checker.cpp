@@ -181,13 +181,13 @@ bool attachedObject
   pRSstate->setToDefaultValues();
 
   const std::string supportGroup = (pHyState->armIndex().value == 1) ? "psm_one" : "psm_two";
+  // convert object pose to robot tip pose
+  // this is the gripper tool tip link frame wrt /base_link
+  Eigen::Affine3d object_pose;  // object pose w/rt base frame
+  hyStateSpace_->se3ToEigen3d(pHyState, object_pose);
+
   if (!pHyState->jointsComputed())
   {
-    // convert object pose to robot tip pose
-    // this is the gripper tool tip link frame wrt /base_link
-    Eigen::Affine3d object_pose;  // object pose w/rt base frame
-    hyStateSpace_->se3ToEigen3d(pHyState, object_pose);
-
     Eigen::Affine3d grasp_pose = hyStateSpace_->graspTransformations()[pHyState->graspIndex().value].grasp_pose;
     Eigen::Affine3d tool_tip_pose = object_pose * grasp_pose.inverse();
 
@@ -216,10 +216,17 @@ bool attachedObject
 
   if (attachedObject)
   {
+    const Eigen::Affine3d tool_tip_pose = pRSstate->getGlobalLinkTransform(pRSstate->getJointModelGroup(supportGroup)->getOnlyOneEndEffectorTip());
+    Eigen::Affine3d grasp_pose = tool_tip_pose.inverse() * object_pose;
+
+    if (grasp_pose.isApprox(hyStateSpace_->graspTransformations()[pHyState->graspIndex().value].grasp_pose, 1e-4))
+    {
+      grasp_pose = hyStateSpace_->graspTransformations()[pHyState->graspIndex().value].grasp_pose;
+    }
     // attach object to supporting joint group of robot
     moveit::core::AttachedBody *pNeedleModel = createAttachedBody(supportGroup,
                                                                   m_ObjectName,
-                                                                  pHyState->graspIndex().value);
+                                                                  grasp_pose);
     pRSstate->attachBody(pNeedleModel);
     pRSstate->update();
   }
@@ -317,7 +324,7 @@ void HybridStateValidityChecker::loadNeedleModel()
   try
   {
     needle_mesh = shapes::createMeshFromResource("package://sim_gazebo/"
-                                                 "props/needle_pf/mesh/needle_pf.dae",
+                                                 "props/needle/mesh/needle_thin.dae",
                                                  scale_vec);
     if (!shapes::constructMsgFromShape(needle_mesh, mesh_msg))
       throw "Needle model is not loaded";
@@ -351,17 +358,41 @@ const std::string& planning_group
 
 bool HybridStateValidityChecker::noCollision
 (
-const robot_state::RobotState& rstate
+const robot_state::RobotState& rstate,
+const std::string& planningGroup,
+bool needleInteraction,
+bool verbose
 ) const
 {
-  planning_scene_->setCurrentState(rstate);
   collision_detection::CollisionRequest collision_request;
   collision_request.contacts = true;
   collision_detection::CollisionResult collision_result;
-  planning_scene_->checkCollision(collision_request, collision_result, rstate);
-  bool no_collision = !collision_result.collision;
 
-  return no_collision;
+  if (!needleInteraction)
+  {
+    collision_detection::AllowedCollisionMatrix acm = planning_scene_->getAllowedCollisionMatrix();
+    const std::string psm = (planningGroup == "psm_one") ? "PSM1" : "PSM2";
+    acm.setEntry(m_ObjectName, psm + "_tool_wrist_sca_ee_link_1", true);
+    acm.setEntry(m_ObjectName, psm + "_tool_wrist_sca_ee_link_2", true);
+    planning_scene_->checkCollision(collision_request, collision_result, rstate, acm);
+  }
+  else
+  {
+    planning_scene_->checkCollision(collision_request, collision_result, rstate);
+  }
+
+  if (collision_result.collision && verbose)
+  {
+    ROS_WARN("NoCollision: Robot state is in collision with planning scene. \n");
+    collision_detection::CollisionResult::ContactMap contactMap = collision_result.contacts;
+    for (collision_detection::CollisionResult::ContactMap::const_iterator it = contactMap.begin();
+         it != contactMap.end(); ++it)
+    {
+      ROS_WARN("Contact between: %s and %s \n", it->first.first.c_str(), it->first.second.c_str());
+    }
+  }
+
+  return !collision_result.collision;
 }
 
 void HybridStateValidityChecker::noCollisionThread
@@ -384,10 +415,12 @@ bool HybridStateValidityChecker::isRobotStateValid
 (
 const planning_scene::PlanningScene& planning_scene,
 const std::string& planning_group,
+bool needleInteraction,
+bool verbose,
 robot_state::RobotState* state,
 const robot_state::JointModelGroup* group,
 const double* ik_solution
-)
+) const
 {
   state->setJointGroupPositions(group, ik_solution);
   const std::string outer_pitch_joint = (planning_group == "psm_one") ? "PSM1_outer_pitch" : "PSM2_outer_pitch";
@@ -401,5 +434,33 @@ const double* ik_solution
     return false;
   }
 
-  return !planning_scene.isStateColliding(*state);
+  collision_detection::CollisionRequest collision_request;
+  collision_request.contacts = true;
+  collision_detection::CollisionResult collision_result;
+
+  if (!needleInteraction)
+  {
+    collision_detection::AllowedCollisionMatrix acm = planning_scene.getAllowedCollisionMatrix();
+    const std::string psm = (planning_group == "psm_one") ? "PSM1" : "PSM2";
+    acm.setEntry(m_ObjectName, psm + "_tool_wrist_sca_ee_link_1", true);
+    acm.setEntry(m_ObjectName, psm + "_tool_wrist_sca_ee_link_2", true);
+    planning_scene.checkCollision(collision_request, collision_result, *state, acm);
+  }
+  else
+  {
+    planning_scene.checkCollision(collision_request, collision_result, *state);
+  }
+
+  if (collision_result.collision && verbose)
+  {
+    ROS_WARN("IsRobotStateValid: Robot state is in collision with planning scene. \n");
+    collision_detection::CollisionResult::ContactMap contactMap = collision_result.contacts;
+    for (collision_detection::CollisionResult::ContactMap::const_iterator it = contactMap.begin();
+         it != contactMap.end(); ++it)
+    {
+      ROS_WARN("Contact between: %s and %s \n", it->first.first.c_str(), it->first.second.c_str());
+    }
+  }
+
+  return !collision_result.collision;
 }

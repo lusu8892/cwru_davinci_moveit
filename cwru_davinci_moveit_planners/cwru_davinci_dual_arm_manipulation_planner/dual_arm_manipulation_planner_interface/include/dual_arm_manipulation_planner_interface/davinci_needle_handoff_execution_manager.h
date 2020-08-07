@@ -47,6 +47,8 @@
 // cwru_davinci_grasp
 #include <cwru_davinci_grasp/davinci_simple_needle_grasper.h>
 
+#include <cwru_davinci_grasp/davinci_needle_pose_publisher.h>
+
 namespace dual_arm_manipulation_planner_interface
 {
 class DavinciNeedleHandoffExecutionManager
@@ -63,7 +65,7 @@ public:
   const std::string& robotDescription = "robot_description"
   );
 
-  ~DavinciNeedleHandoffExecutionManager(){};
+  ~DavinciNeedleHandoffExecutionManager();
 
   bool planNeedleHandoffTraj
   (
@@ -84,7 +86,39 @@ public:
   const std::vector<double>& goalJointPosition
   );
 
+  bool setupStartAndGoalStateInPlanner
+  (
+  const ompl::base::ScopedState<HybridObjectStateSpace>& start,
+  const ompl::base::ScopedState<HybridObjectStateSpace>& goal
+  );
+
   bool initializePlanner
+  (
+  bool withStartAndGoalState = true
+  );
+
+  bool initializePlannerWithoutState
+  (
+  )
+  {
+    return initializePlanner(false);
+  }
+
+  void resetPlannerStatus
+  (
+  )
+  {
+    m_PlanningStatus = ompl::base::PlannerStatus::UNKNOWN;
+  }
+
+  const ompl::base::SpaceInformationPtr& plannerSpaceInformation
+  (
+  )
+  {
+    return m_pHandoffPlanner->m_pSpaceInfor;
+  }
+
+  const Eigen::Affine3d& updateNeedlePose
   (
   );
 
@@ -103,7 +137,8 @@ protected:
   std::unique_ptr<MoveGroupInterface>                             m_pMoveItSupportArmGroupInterf = nullptr;
 
   ros::Subscriber                                                 m_NeedlePoseSub;
-
+  ros::ServiceClient                                              m_PSMOneStickyFingerClient;
+  ros::ServiceClient                                              m_PSMTwoStickyFingerClient;
   PathJointTrajectory                                             m_HandoffJntTraj;
 
   ros::NodeHandle                                                 m_NodeHandlePrivate;
