@@ -126,20 +126,23 @@ public:
   const robot_state::RobotState& rstate
   ) const;
 
-  static bool isRobotStateValid
+  bool isRobotStateValid
   (
   const planning_scene::PlanningScene& planning_scene,
   const std::string& planning_group,
+  bool needleInteraction,
+  bool verbose,
   robot_state::RobotState* state,
   const robot_state::JointModelGroup* group,
   const double* ik_solution
-  );
+  ) const;
 
   bool noCollision
   (
   const robot_state::RobotState& rstate,
   const std::string& planningGroup = "",
-  bool needleInteraction = true
+  bool needleInteraction = true,
+  bool verbose = false
   ) const;
 
   void noCollisionThread
@@ -153,6 +156,37 @@ public:
   ) const
   {
     return m_ObjectName;
+  }
+
+  bool validateTrajectory
+  (
+  const std::string& planningGroup,
+  const robot_state::RobotStatePtr& pRobotState,
+  const std::vector<std::vector<double>>& armJntTraj,
+  double jaw = 0.0,
+  bool verbose = false,
+  bool needleInteraction = true
+  );
+
+  bool detechNeedleGrasped
+  (
+  const robot_state::RobotState& rstate,
+  const std::string& planningGroup,
+  bool verbose = false
+  );
+
+  void setJawPosition
+  (
+  double radian,
+  const std::string& planningGroup,
+  const robot_state::RobotStatePtr& pRState
+  );
+
+  const planning_scene::PlanningScenePtr& getPlanningScene
+  (
+  )
+  {
+    return planning_scene_;
   }
 
 protected:

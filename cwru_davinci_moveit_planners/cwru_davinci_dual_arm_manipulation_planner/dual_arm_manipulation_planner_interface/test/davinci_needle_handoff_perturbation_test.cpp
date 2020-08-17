@@ -73,8 +73,8 @@ std::vector<ob::ScopedState<HybridObjectStateSpace>>& goalStatesVec
     while (!is_gs_valid)
     {
       stateSampler->sampleUniform(goal.get());
-      goal->graspIndex().value = 147;
-      goal->armIndex().value = 1;
+      // goal->graspIndex().value = 147;
+      // goal->armIndex().value = 1;
       goal->setJointsComputed(false);
       is_gs_valid = hybridPlannerSpaceInforPtr->isValid(goal.get());
     }
@@ -145,7 +145,7 @@ int main(int argc, char** argv)
   double planningTime;
   nodeHandlePriv.getParam("planning_time", planningTime);
 
-  DummyNeedleModifier needlePoseCoordinator(nodeHandle);
+  DummyNeedleModifier needlePoseCoordinator(nodeHandle, nodeHandlePriv);
 
   cwru_davinci_grasp::DavinciSimpleNeedleGrasperPtr pSimpleGrasp =
   boost::make_shared<cwru_davinci_grasp::DavinciSimpleNeedleGrasper>(nodeHandle,
@@ -179,6 +179,16 @@ int main(int argc, char** argv)
 
   for (std::size_t i = 0; i < numTest; ++i)
   {
+    if (i != 0)
+    {
+      char answer;
+      std::cout << "Continue (y/n)? " << std::endl;
+      std::cin >> answer;
+      double okToMove = (answer == 'y') ? true : false;
+      if (!okToMove)
+      break;
+    }
+    
     // rest robot to home position
     psmOnePtr->go(psmHomeConfig, 1.0);
     psmTwoPtr->go(psmHomeConfig, 1.0);
@@ -200,50 +210,53 @@ int main(int argc, char** argv)
     const std::string& initialArm = (startStatesVec[i]->armIndex().value == 1) ? "psm_one" : "psm_two";
     pSimpleGrasp->changePlanningGroup(initialArm);
 
-    if (!pSimpleGrasp->pickNeedle(objectName, cwru_davinci_grasp::NeedlePickMode::RANDOM))
+    // execute needle grasping first
+    if (!pSimpleGrasp->selectPickNeedle(objectName, graspPoses[startStatesVec[i]->graspIndex().value]))
     {
-      ROS_INFO("%s: needle picked up in RANDOM way", nodeHandle.getNamespace().c_str());
-      return -1;
+      ROS_INFO("%s: did not pick needle up in SELECT way", nodeHandle.getNamespace().c_str());
+      if (!pSimpleGrasp->pickNeedle(objectName, cwru_davinci_grasp::NeedlePickMode::RANDOM))
+      {
+        ROS_INFO("%s: did not pick needle up in RANDOM way", nodeHandle.getNamespace().c_str());
+        continue;
+      }
+      ROS_INFO("%s: needle is picked up in RANDOM way", nodeHandle.getNamespace().c_str());
+      cwru_davinci_grasp::GraspInfo initialGraspInfo = pSimpleGrasp->getSelectedGraspInfo();
+      initialGraspInfo = graspPoses[initialGraspInfo.graspParamInfo.grasp_id];
+      startStatesVec[i]->graspIndex().value = initialGraspInfo.graspParamInfo.grasp_id;
+    }
+    else
+    {
+      ROS_INFO("%s: needle is picked up in SELECT way", nodeHandle.getNamespace().c_str());
     }
 
     ros::Duration(1.0).sleep();
     ros::spinOnce();
 
-    // execute needle grasping first
-    cwru_davinci_grasp::GraspInfo initialGraspInfo = pSimpleGrasp->getSelectedGraspInfo();
-    initialGraspInfo = graspPoses[initialGraspInfo.graspParamInfo.grasp_id];
-    startStatesVec[i]->graspIndex().value = initialGraspInfo.graspParamInfo.grasp_id;
-
-    geometry_msgs::Pose needlePose = pSimpleGrasp->getNeedlePose().pose;
-    startStatesVec[i]->se3State().setXYZ(needlePose.position.x,
-                                         needlePose.position.y,
-                                         needlePose.position.z);
-
     needleHandoffExecutor.plannerSpaceInformation()->getStateSpace()->as<HybridObjectStateSpace>()->setJointValues(pSimpleGrasp->graspedJointPosition(),
                                                                                                                   startStatesVec[i].get());
 
-    startStatesVec[i]->se3State().rotation().w = needlePose.orientation.w;
-    startStatesVec[i]->se3State().rotation().x = needlePose.orientation.x;
-    startStatesVec[i]->se3State().rotation().y = needlePose.orientation.y;
-    startStatesVec[i]->se3State().rotation().z = needlePose.orientation.z;
+    const Eigen::Affine3d needlePose = needleHandoffExecutor.updateNeedlePose();
+    needleHandoffExecutor.plannerSpaceInformation()->getStateSpace()->as<HybridObjectStateSpace>()->eigen3dToSE3(needlePose, startStatesVec[i].get());
 
     if (!needleHandoffExecutor.setupStartAndGoalStateInPlanner(startStatesVec[i], goalStatesVec[i]))
     {
       ROS_ERROR("Davinci handoff perturbation test failed at %dth trial, failed at setuping up start and goal states", i);
-      return -1;
+      continue;
     }
 
     if (!needleHandoffExecutor.planNeedleHandoffTraj(planningTime))
     {
       ROS_ERROR("Davinci handoff perturbation test failed at %dth trial, failed at PLANNING handoff trajectory", i);
-      return -1;
+      continue;
     }
 
     if (!needleHandoffExecutor.executeNeedleHandoffTraj())
     {
       ROS_ERROR("Davinci handoff perturbation test failed at %dth trial, failed at EXECUTING handoff trajectory", i);
-      return -1;
+      continue;
     }
+
+    ros::Duration(1.0).sleep();
   }
 
   ros::shutdown();
