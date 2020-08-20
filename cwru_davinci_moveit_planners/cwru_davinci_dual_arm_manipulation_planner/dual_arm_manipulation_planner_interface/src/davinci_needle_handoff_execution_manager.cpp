@@ -118,18 +118,27 @@ bool DavinciNeedleHandoffExecutionManager::executeNeedleHandoffTraj
     {
       const MoveGroupJointTrajectorySegment& jntTrajSeg = m_HandoffJntTraj[i][0].second;
       m_pSupportArmGroup.reset(new psm_interface(jntTrajSeg.begin()->first, m_NodeHandle));
-      if(!correctObjectTransfer(i + 1))
+      double jawPosition = 0.0;
+      m_pSupportArmGroup->get_gripper_fresh_position(jawPosition);
+      const JointTrajectory& jntTra = jntTrajSeg.begin()->second;
+      if (!m_pSupportArmGroup->execute_trajectory(jntTra, jawPosition, 0.03))
       {
-        ROS_ERROR("DavinciNeedleHandoffExecutionManager: Failed to execute needle transfer trajectory");
+        ROS_INFO("DavinciNeedleHandoffExecutionManager: Failed to execute needle transfer trajectories");
         return false;
       }
+      ROS_INFO("DavinciNeedleHandoffExecutionManager: the number %d trajectory has been executed", (int)i);
+      // if(!correctObjectTransfer(i + 1))
+      // {
+      //   ROS_ERROR("DavinciNeedleHandoffExecutionManager: Failed to execute needle transfer trajectory");
+      //   return false;
+      // }
     }
     else if (m_HandoffJntTraj[i].size() == 4)  // object Transfer
     {
-      if (!correctObjectTransit(i, m_HandoffJntTraj[i]))
-      {
-        return false;
-      }
+      // if (!correctObjectTransit(i, m_HandoffJntTraj[i]))
+      // {
+      //   return false;
+      // }
 
       m_pMoveItSupportArmGroupInterf.reset(new MoveGroupInterface(m_HandoffJntTraj[i][2].second.begin()->first));
       m_pMoveItSupportArmGroupInterf->detachObject(m_ObjectName);
@@ -214,13 +223,13 @@ bool DavinciNeedleHandoffExecutionManager::executeNeedleHandoffTraj
       }
       ROS_INFO("DavinciNeedleHandoffExecutionManager: the number %d trajectory has been executed", (int)i);
 
-      // after handoff motion, correct needle pose once
-      m_pSupportArmGroup.reset(new psm_interface(toSupportGroup, m_NodeHandle));
-      if(!correctObjectTransfer(i + 1) && (i == m_HandoffJntTraj.size()))
-      {
-        ROS_ERROR("DavinciNeedleHandoffExecutionManager: Failed to execute handoff trajectories");
-        return false;
-      }
+      // // after handoff motion, correct needle pose once
+      // m_pSupportArmGroup.reset(new psm_interface(toSupportGroup, m_NodeHandle));
+      // if(!correctObjectTransfer(i + 1) && (i == m_HandoffJntTraj.size()))
+      // {
+      //   ROS_ERROR("DavinciNeedleHandoffExecutionManager: Failed to execute handoff trajectories");
+      //   return false;
+      // }
     }
   }
 
@@ -310,6 +319,7 @@ const ompl::base::ScopedState<HybridObjectStateSpace>& goal
   {
     return false;
   }
+
   if (!m_pHandoffPlanner->m_pSpaceInfor->satisfiesBounds(start.get())
       || !m_pHandoffPlanner->m_pSpaceInfor->satisfiesBounds(goal.get()))
   {
