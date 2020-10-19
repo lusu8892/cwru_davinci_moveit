@@ -4,20 +4,20 @@ This dual-arm needle manipulation planner is implemented by [**RRT-CONNECT**](ht
 
 This package includes:
 
-  - [**HybridObjectStateSpace**](https://github.com/cwru-davinci/cwru_davinci_moveit/blob/e795114ebeb192d5bb612ea680586cf373dcf74f/cwru_davinci_moveit_planners/cwru_davinci_dual_arm_manipulation_planner/dual_arm_manipulation_planner_interface/include/dual_arm_manipulation_planner_interface/parameterization/hybrid_object_state_space.h#L98)
+  - [**HybridObjectStateSpace**](https://github.com/lusu8892/cwru_davinci_moveit/blob/9b0ed0ebbcbf2abbc145fc52239132c8b94f30e2/cwru_davinci_moveit_planners/cwru_davinci_dual_arm_manipulation_planner/dual_arm_manipulation_planner_interface/include/dual_arm_manipulation_planner_interface/parameterization/hybrid_object_state_space.h#L98)
 defines a state space which is composed by cartesian space and two discrete state spaces. The space is used to have RRT-CONNECT work on it.
-  - [**HybridStateSampler**](https://github.com/lusu8892/cwru_davinci_moveit/blob/e795114ebeb192d5bb612ea680586cf373dcf74f/cwru_davinci_moveit_planners/cwru_davinci_dual_arm_manipulation_planner/dual_arm_manipulation_planner_interface/include/dual_arm_manipulation_planner_interface/parameterization/hybrid_object_state_space.h#L67)
-defines a hybrid state space sampler that samples a random state.
-  - [**HybridStateValidityChecker**](https://github.com/lusu8892/cwru_davinci_moveit/blob/e795114ebeb192d5bb612ea680586cf373dcf74f/cwru_davinci_moveit_planners/cwru_davinci_dual_arm_manipulation_planner/dual_arm_manipulation_planner_interface/include/dual_arm_manipulation_planner_interface/hybrid_state_validity_checker.h#L58)
-defines a validity checker which is used to verify if state is valid also check if robot state is in collision.
-  - [**HybridMotionValidator**](https://github.com/lusu8892/cwru_davinci_moveit/blob/e795114ebeb192d5bb612ea680586cf373dcf74f/cwru_davinci_moveit_planners/cwru_davinci_dual_arm_manipulation_planner/dual_arm_manipulation_planner_interface/include/dual_arm_manipulation_planner_interface/hybrid_motion_validator.h#L54)
-defines a local planner which is used to connect two hybrid states.
-  - [**HybridObjectHandoffPlanner**](https://github.com/lusu8892/cwru_davinci_moveit/blob/e795114ebeb192d5bb612ea680586cf373dcf74f/cwru_davinci_moveit_planners/cwru_davinci_dual_arm_manipulation_planner/dual_arm_manipulation_planner_interface/include/dual_arm_manipulation_planner_interface/hybrid_object_handoff_planner.h#L71)
-defines a object handoff planner which is used to do needle handoff path planning.
-  - [**DavinciNeedleHandoffExecutionManager**](https://github.com/lusu8892/cwru_davinci_moveit/blob/e795114ebeb192d5bb612ea680586cf373dcf74f/cwru_davinci_moveit_planners/cwru_davinci_dual_arm_manipulation_planner/dual_arm_manipulation_planner_interface/include/dual_arm_manipulation_planner_interface/davinci_needle_handoff_execution_manager.h#L52)
-controls daVinci dual-PSMs to do needle handoff motion which trajectories is calculated from **HybridObjectHandoffPlanner**.
+  - [**HybridStateSampler**](https://github.com/lusu8892/cwru_davinci_moveit/blob/9b0ed0ebbcbf2abbc145fc52239132c8b94f30e2/cwru_davinci_moveit_planners/cwru_davinci_dual_arm_manipulation_planner/dual_arm_manipulation_planner_interface/include/dual_arm_manipulation_planner_interface/parameterization/hybrid_object_state_space.h#L67)
+defines a state sampler for randomly sampling hybrid-object-state.
+  - [**HybridStateValidityChecker**](https://github.com/lusu8892/cwru_davinci_moveit/blob/9b0ed0ebbcbf2abbc145fc52239132c8b94f30e2/cwru_davinci_moveit_planners/cwru_davinci_dual_arm_manipulation_planner/dual_arm_manipulation_planner_interface/include/dual_arm_manipulation_planner_interface/hybrid_state_validity_checker.h#L58)
+defines a validity checker which is used to verify if a hybrid state is valid also check if robot state is in collision.
+  - [**HybridMotionValidator**](https://github.com/lusu8892/cwru_davinci_moveit/blob/9b0ed0ebbcbf2abbc145fc52239132c8b94f30e2/cwru_davinci_moveit_planners/cwru_davinci_dual_arm_manipulation_planner/dual_arm_manipulation_planner_interface/include/dual_arm_manipulation_planner_interface/hybrid_motion_validator.h#L54)
+defines a local planner for connecting with two hybrid states.
+  - [**HybridObjectHandoffPlanner**](https://github.com/lusu8892/cwru_davinci_moveit/blob/9b0ed0ebbcbf2abbc145fc52239132c8b94f30e2/cwru_davinci_moveit_planners/cwru_davinci_dual_arm_manipulation_planner/dual_arm_manipulation_planner_interface/include/dual_arm_manipulation_planner_interface/hybrid_object_handoff_planner.h#L71)
+defines an object handoff planner for the path planning of the dual-arm needle manipulation.
+  - [**DavinciNeedleHandoffExecutionManager**](https://github.com/lusu8892/cwru_davinci_moveit/blob/9b0ed0ebbcbf2abbc145fc52239132c8b94f30e2/cwru_davinci_moveit_planners/cwru_davinci_dual_arm_manipulation_planner/dual_arm_manipulation_planner_interface/include/dual_arm_manipulation_planner_interface/davinci_needle_handoff_execution_manager.h#L54)
+controls daVinci dual-PSMs to do needle handoff motion which trajectories are calculated from **HybridObjectHandoffPlanner**.
 
-Developed by [Su Lu](https://github.com/lusu8892/) at the Mercis Lab, Case Western Reserve University.
+Developed by [Su Lu](https://github.com/lusu8892/) at the MeRCIS Lab, Case Western Reserve University.
 
 ## Install
 Before downloading code from here, please make sure you have installed MoveIt and OMPL from **source** **only**!
@@ -48,6 +48,7 @@ roslaunch cwru_davinci_dual_arm_manipulation_planner davinci_needle_handoff_exec
 
 To use on hardware
 ```
+# Launch dvrk
 roslaunch cwru_davinci_dvrk_both_psms_moveit_config bringup.launch
 roslaunch cwru_davinci_dual_arm_manipulation_planner davinci_needle_handoff_execution_main_hardware.launch
 ```
